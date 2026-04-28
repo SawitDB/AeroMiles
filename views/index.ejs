@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AeroMiles Dashboard</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <header>
+        <h1>AeroMiles Case 2</h1>
+        <p>Welcome, <%= user.name %> (<%= user.npm %>)</p>
+    </header>
+
+    <main>
+        <section class="balance-card">
+            <h2>Total Miles</h2>
+            <p class="points"><%= user.milesBalance %> pts</p>
+        </section>
+
+        <section class="history">
+            <h3>Transaction History</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Activity</th>
+                        <th>Points</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% user.transactions.forEach(tx => { %>
+                        <tr>
+                            <td><%= tx.date %></td>
+                            <td><%= tx.activity %></td>
+                            <td class="<%= tx.points > 0 ? 'plus' : 'minus' %>">
+                                <%= tx.points %>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </section>
+    </main>
+</body>
+</html>
