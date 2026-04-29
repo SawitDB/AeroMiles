@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# General build output (optional, safe)
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Env files (keep example)
+.env
+.env.*
+!.env.example
+
+# Caches
+.eslintcache
+*.tsbuildinfo
+
+# Testing / coverage
+coverage/
+
+# Tooling
+.turbo/
+.vercel/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
