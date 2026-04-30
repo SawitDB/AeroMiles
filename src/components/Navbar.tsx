@@ -65,23 +65,23 @@ export function Navbar() {
 
   const memberLinks = [
     { href: '/dashboard', label: 'Dashboard' },
-    { href: '/profile', label: 'Identitas Saya' },
-    { href: '/klaim', label: 'Klaim Miles' },
-    { href: '/transfer', label: 'Transfer Miles' },
-    { href: '/redeem', label: 'Redeem Hadiah' },
+    { href: '/identitas-saya', label: 'Identitas Saya' },
+    { href: '/klaim-miles', label: 'Klaim Miles' },
+    { href: '/transfer-miles', label: 'Transfer Miles' },
+    { href: '/redeem-hadiah', label: 'Redeem Hadiah' },
     { href: '/beli-package', label: 'Beli Package' },
     { href: '/info-tier', label: 'Info Tier' },
-    { href: '/settings', label: 'Pengaturan Profil' },
+    { href: '/pengaturan-profil', label: 'Pengaturan Profil' },
   ]
 
   const stafLinks = [
     { href: '/dashboard', label: 'Dashboard' },
     { href: '/kelola-member', label: 'Kelola Member' },
     { href: '/kelola-klaim', label: 'Kelola Klaim' },
-    { href: '/kelola-hadiah', label: 'Kelola Hadiah & Penyedia' },
+    { href: '/kelola-hadiah-penyedia', label: 'Kelola Hadiah & Penyedia' },
     { href: '/kelola-mitra', label: 'Kelola Mitra' },
-    { href: '/laporan', label: 'Laporan Transaksi' },
-    { href: '/settings', label: 'Pengaturan Profil' },
+    { href: '/laporan-transaksi', label: 'Laporan Transaksi' },
+    { href: '/pengaturan-profil', label: 'Pengaturan Profil' },
   ]
 
   if (!isHydrated) return null

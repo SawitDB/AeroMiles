@@ -77,6 +77,7 @@ export default function LoginPage() {
       }
 
       window.localStorage.setItem('aeromiles_session', JSON.stringify(session))
+      window.dispatchEvent(new Event('aeromiles_session_changed'))
       setIsSubmitting(false)
       router.push('/dashboard')
     } catch (err) {
