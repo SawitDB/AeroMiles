@@ -15,7 +15,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id">
-      <body className="min-h-screen bg-gradient-to-br from-secondary to-secondary-50 text-slate-900">
+      <body className="min-h-screen bg-gradient-to-br from-secondary-700 to-secondary-500 text-slate-900">
         <Providers>
           <Navbar />
           {children}

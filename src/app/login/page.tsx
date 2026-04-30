@@ -1,8 +1,27 @@
 'use client'
 
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+
+const HARD_CODED_USERS = [
+  {
+    email: 'member@aeromiles.com',
+    password: 'member123',
+    role: 'member' as const,
+    first_mid_name: 'Aero',
+    last_name: 'Miles',
+    salutation: 'Mr.',
+  },
+  {
+    email: 'staf@aeromiles.com',
+    password: 'staf123',
+    role: 'staf' as const,
+    first_mid_name: 'Aero',
+    last_name: 'Staff',
+    salutation: 'Ms.',
+  },
+]
 
 export default function LoginPage() {
   const router = useRouter()
@@ -11,25 +30,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  useEffect(() => {
-    // ensure mock users exist (AuthProvider also seeds, but guard here too)
-    try {
-      const raw = window.localStorage.getItem('aeromiles_users')
-      if (!raw) {
-        const seed = [
-          { email: 'alice@example.com', password: 'hashed_password1', role: 'member', name: 'Alice Putri', first_mid_name: 'Alice' },
-          { email: 'budi@example.com', password: 'hashed_password2', role: 'member', name: 'Budi Santoso', first_mid_name: 'Budi' },
-          { email: 'citra@example.com', password: 'hashed_password3', role: 'member', name: 'Citra Dewi', first_mid_name: 'Citra' },
-          { email: 'dedi.staf@example.com', password: 'hashed_staff1', role: 'staf', name: 'Dedi Kurnia', first_mid_name: 'Dedi' },
-          { email: 'ela.staf@example.com', password: 'hashed_staff2', role: 'staf', name: 'Ela Mariana', first_mid_name: 'Ela' },
-        ]
-        window.localStorage.setItem('aeromiles_users', JSON.stringify(seed))
-      }
-    } catch {
-      // ignore
-    }
-  }, [])
 
   function validate() {
     if (!email.trim() || !password) {
@@ -46,10 +46,17 @@ export default function LoginPage() {
     setIsSubmitting(true)
 
     try {
-      const raw = window.localStorage.getItem('aeromiles_users')
-      const users = raw ? (JSON.parse(raw) as any[]) : []
-      const hashed = 'hashed_' + password
-      const found = users.find((u) => u.email === email && u.password === hashed)
+      const normalizedEmail = email.trim().toLowerCase()
+      let found = null
+
+      if (normalizedEmail === HARD_CODED_USERS[0].email && password === HARD_CODED_USERS[0].password) {
+        found = HARD_CODED_USERS[0]
+      }
+
+      if (normalizedEmail === HARD_CODED_USERS[1].email && password === HARD_CODED_USERS[1].password) {
+        found = HARD_CODED_USERS[1]
+      }
+
       if (!found) {
         setError('Email atau password salah')
         setIsSubmitting(false)
@@ -59,8 +66,14 @@ export default function LoginPage() {
       const session = {
         email: found.email,
         role: found.role,
-        name: found.name ?? found.first_mid_name ?? '',
-        first_mid_name: found.first_mid_name ?? '',
+        salutation: found.salutation,
+        first_mid_name: found.first_mid_name,
+        last_name: found.last_name,
+        name: `${found.first_mid_name} ${found.last_name}`,
+        mobile_number: '',
+        country_code: '',
+        kewarganegaraan: '',
+        tanggal_lahir: '',
       }
 
       window.localStorage.setItem('aeromiles_session', JSON.stringify(session))
@@ -74,7 +87,7 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded-2xl bg-white/70 backdrop-blur-lg p-6 shadow-sm">
+      <div className="w-full max-w-sm rounded-2xl bg-white/90 backdrop-blur-lg p-6 shadow-sm">
         <h1 className="text-center text-2xl font-semibold text-black">AEROMILES</h1>
         <p className="mt-2 text-center text-sm text-black/80">Silakan masuk ke akun Anda</p>
 
