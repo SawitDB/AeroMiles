@@ -1,229 +1,202 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRequireAuth } from '@/lib/auth/useRequireAuth'
-import { loadIdentitas, saveIdentitas } from '@/lib/auth/storage'
-import type { Identitas } from '@/lib/auth/types'
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
-const JENIS_OPTIONS: Identitas['jenis'][] = ['Paspor', 'KTP', 'SIM']
-const NEGARA_OPTIONS = [
-  'Indonesia', 'Malaysia', 'Singapura', 'Filipina', 'Thailand',
-  'Vietnam', 'Australia', 'Amerika Serikat', 'Inggris', 'Jepang',
-]
+type Session = { email: string; role?: string; name?: string; first_mid_name?: string }
 
-type ModalMode = 'add' | 'edit' | null
-
-const EMPTY_FORM = {
-  nomor: '',
-  jenis: 'Paspor' as Identitas['jenis'],
-  negaraPenerbit: 'Indonesia',
-  tanggalTerbit: '',
-  tanggalHabis: '',
-}
-
-function isExpired(tanggalHabis: string) {
-  return new Date(tanggalHabis) < new Date()
-}
-
-export default function IdentitasPage() {
-  const { user, isHydrated } = useRequireAuth()
-  const [list, setList] = useState<Identitas[]>([])
-  const [modalMode, setModalMode] = useState<ModalMode>(null)
-  const [editTarget, setEditTarget] = useState<Identitas | null>(null)
-  const [form, setForm] = useState(EMPTY_FORM)
-  const [formError, setFormError] = useState('')
-  const [deleteTarget, setDeleteTarget] = useState<Identitas | null>(null)
+export default function DashboardPage() {
+  const router = useRouter()
+  const [session, setSession] = useState<Session | null>(null)
+  const [userRec, setUserRec] = useState<any>(null)
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [claims, setClaims] = useState<any[]>([])
 
   useEffect(() => {
-    if (!user) return
-    setList(loadIdentitas().filter(i => i.emailMember === user.email))
-  }, [user])
-
-  if (isHydrated && user && user.role !== 'member') {
-    return (
-      <main className="flex min-h-screen items-center justify-center p-6">
-        <div className="rounded-2xl bg-white/90 p-8 text-center shadow-sm">
-          <p className="text-lg font-semibold text-red-600">Akses Ditolak</p>
-          <p className="mt-2 text-sm text-slate-500">Halaman ini hanya untuk Member.</p>
-        </div>
-      </main>
-    )
-  }
-
-  if (!isHydrated || !user) return (
-    <main className="flex min-h-screen items-center justify-center">
-      <p className="text-sm text-slate-500">Memuat...</p>
-    </main>
-  )
-
-  function openAdd() {
-    setForm(EMPTY_FORM); setFormError(''); setEditTarget(null); setModalMode('add')
-  }
-
-  function openEdit(id: Identitas) {
-    setEditTarget(id)
-    setForm({ nomor: id.nomor, jenis: id.jenis, negaraPenerbit: id.negaraPenerbit, tanggalTerbit: id.tanggalTerbit, tanggalHabis: id.tanggalHabis })
-    setFormError(''); setModalMode('edit')
-  }
-
-  function handleSave() {
-    if (!form.nomor || !form.tanggalTerbit || !form.tanggalHabis) { setFormError('Semua field wajib diisi.'); return }
-    if (new Date(form.tanggalHabis) <= new Date(form.tanggalTerbit)) { setFormError('Tanggal habis harus setelah tanggal terbit.'); return }
-    const all = loadIdentitas()
-    if (modalMode === 'add') {
-      if (all.some(i => i.nomor === form.nomor)) { setFormError('Nomor dokumen sudah terdaftar.'); return }
-      const newId: Identitas = { nomor: form.nomor, emailMember: user.email, jenis: form.jenis, negaraPenerbit: form.negaraPenerbit, tanggalTerbit: form.tanggalTerbit, tanggalHabis: form.tanggalHabis }
-      const next = [...all, newId]
-      saveIdentitas(next); setList(next.filter(i => i.emailMember === user.email))
-    } else if (modalMode === 'edit' && editTarget) {
-      const next = all.map(i => i.nomor === editTarget.nomor
-        ? { ...i, jenis: form.jenis, negaraPenerbit: form.negaraPenerbit, tanggalTerbit: form.tanggalTerbit, tanggalHabis: form.tanggalHabis }
-        : i)
-      saveIdentitas(next); setList(next.filter(i => i.emailMember === user.email))
+    if (typeof window === 'undefined') return
+    const raw = window.localStorage.getItem('aeromiles_session')
+    if (!raw) {
+      router.replace('/login')
+      return
     }
-    setModalMode(null)
-  }
+    try {
+      const s = JSON.parse(raw) as Session
+      setSession(s)
 
-  function handleDelete() {
-    if (!deleteTarget) return
-    const all = loadIdentitas()
-    const next = all.filter(i => i.nomor !== deleteTarget.nomor)
-    saveIdentitas(next); setList(next.filter(i => i.emailMember === user.email)); setDeleteTarget(null)
-  }
+      const usersRaw = window.localStorage.getItem('aeromiles_users')
+      const users = usersRaw ? (JSON.parse(usersRaw) as any[]) : []
+      const rec = users.find((u) => String(u.email).toLowerCase() === String(s.email).toLowerCase())
+      setUserRec(rec ?? null)
+
+      const txRaw = window.localStorage.getItem('aeromiles_transactions')
+      const tx = txRaw ? (JSON.parse(txRaw) as any[]) : []
+      let filtered = tx
+      if (rec?.nomor_member) filtered = tx.filter((t) => t.nomor_member === rec.nomor_member)
+      else filtered = tx.filter((t) => String(t.email).toLowerCase() === String(s.email).toLowerCase())
+      filtered.sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
+      setTransactions(filtered.slice(0, 5))
+
+      const claimsRaw = window.localStorage.getItem('aeromiles_claims')
+      const cls = claimsRaw ? (JSON.parse(claimsRaw) as any[]) : []
+      setClaims(cls)
+    } catch {
+      router.replace('/login')
+    }
+  }, [router])
+
+  const fullName = useMemo(() => {
+    if (!session && !userRec) return ''
+    const parts = [userRec?.salutation, userRec?.first_mid_name ?? session?.first_mid_name ?? session?.name, userRec?.last_name]
+    return parts.filter(Boolean).join(' ')
+  }, [session, userRec])
+
+  const tierColor = useMemo(() => {
+    const tier = (userRec?.id_tier ?? '').toString().toUpperCase()
+    switch (tier) {
+      case 'SILVER':
+        return 'bg-slate-300 text-slate-900'
+      case 'GOLD':
+        return 'bg-yellow-400 text-slate-900'
+      case 'PLATINUM':
+        return 'bg-purple-600 text-white'
+      default:
+        return 'bg-blue-500 text-white'
+    }
+  }, [userRec])
+
+  const awardMiles = useMemo(() => {
+    if (!transactions || transactions.length === 0) return 120
+    return transactions.reduce((acc, t) => acc + (t.jumlah > 0 ? t.jumlah : 0), 0)
+  }, [transactions])
+
+  const totalMiles = useMemo(() => {
+    if (userRec?.miles) return userRec.miles
+    if (!transactions || transactions.length === 0) return 5000
+    return transactions.reduce((acc, t) => acc + (t.jumlah ?? 0), 0)
+  }, [userRec, transactions])
+
+  const claimSummary = useMemo(() => {
+    const all = claims || []
+    const waiting = all.filter((c) => c.status === 'Menunggu').length
+    const approved = all.filter((c) => c.status === 'Disetujui').length
+    const rejected = all.filter((c) => c.status === 'Ditolak').length
+    return { waiting, approved, rejected }
+  }, [claims])
+
+  if (!session) return null
 
   return (
-    <main className="min-h-[calc(100vh-56px)] p-6">
-      <div className="mx-auto w-full max-w-4xl">
+    <main className="mx-auto max-w-5xl px-4 py-8">
+      <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
 
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Identitas Saya</h1>
-            <p className="mt-1 text-sm text-slate-500">Kelola dokumen identitas Anda</p>
+      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+        <section className="col-span-1 rounded-xl bg-white/6 p-4">
+          <h2 className="text-lg font-semibold text-white">Profil</h2>
+          <div className="mt-3 space-y-2 text-sm text-white/90">
+            <div><span className="font-medium">Nama:</span> {fullName || '-'}</div>
+            <div><span className="font-medium">Email:</span> {session.email}</div>
+            <div><span className="font-medium">Kontak:</span> {(userRec?.country_code ?? '') + ' ' + (userRec?.phone ?? userRec?.mobile_number ?? '')}</div>
+            <div><span className="font-medium">Kewarganegaraan:</span> {userRec?.kewarganegaraan ?? '-'}</div>
+            <div><span className="font-medium">Tanggal Lahir:</span> {userRec?.tanggal_lahir ?? '-'}</div>
           </div>
-          <button onClick={openAdd}
-            className="flex items-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-bold text-white hover:bg-secondary/90">
-            + Tambah Identitas
-          </button>
-        </div>
+        </section>
 
-        <div className="overflow-x-auto rounded-2xl bg-white/90 shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <th className="px-4 py-4">No. Dokumen</th>
-                <th className="px-4 py-4">Jenis</th>
-                <th className="px-4 py-4">Negara</th>
-                <th className="px-4 py-4">Terbit</th>
-                <th className="px-4 py-4">Habis</th>
-                <th className="px-4 py-4">Status</th>
-                <th className="px-4 py-4 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.length === 0
-                ? <tr><td colSpan={7} className="py-10 text-center text-sm text-slate-400">Belum ada dokumen identitas.</td></tr>
-                : list.map(id => (
-                  <tr key={id.nomor} className="border-b border-slate-50 hover:bg-slate-50/50">
-                    <td className="px-4 py-3 font-mono font-semibold text-slate-800">{id.nomor}</td>
-                    <td className="px-4 py-3">{id.jenis}</td>
-                    <td className="px-4 py-3 text-slate-600">{id.negaraPenerbit}</td>
-                    <td className="px-4 py-3 text-slate-600">{id.tanggalTerbit}</td>
-                    <td className="px-4 py-3 text-slate-600">{id.tanggalHabis}</td>
-                    <td className="px-4 py-3">
-                      {isExpired(id.tanggalHabis)
-                        ? <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">Kedaluwarsa</span>
-                        : <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">Aktif</span>
-                      }
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => openEdit(id)} className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600">✏️</button>
-                        <button onClick={() => setDeleteTarget(id)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">🗑️</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              }
-            </tbody>
-          </table>
-        </div>
+        {session.role === 'member' ? (
+          <section className="col-span-2 rounded-xl bg-white/6 p-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">Member Overview</h2>
+              <div className={`rounded-md px-3 py-1 text-sm font-semibold ${tierColor}`}>{(userRec?.id_tier ?? 'BLUE').toUpperCase()}</div>
+            </div>
 
-        {/* Modal Add/Edit */}
-        {modalMode && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-              <div className="mb-5 flex items-center justify-between">
-                <h2 className="text-lg font-bold text-slate-900">
-                  {modalMode === 'add' ? 'Tambah Identitas Baru' : 'Edit Identitas'}
-                </h2>
-                <button onClick={() => setModalMode(null)} className="text-xl text-slate-400 hover:text-slate-600">✕</button>
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+              <div className="rounded-md bg-white/5 p-3 text-sm text-white">
+                <div className="text-xs">Nomor Member</div>
+                <div className="mt-1 font-semibold">{userRec?.nomor_member ?? '-'}</div>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Nomor Dokumen <span className="text-red-500">*</span></label>
-                  <input value={form.nomor} onChange={e => setForm(f => ({ ...f, nomor: e.target.value }))}
-                    disabled={modalMode === 'edit'} placeholder="cth: A12345678"
-                    className={`mt-1 w-full rounded-xl border px-4 py-2.5 text-sm outline-none ${modalMode === 'edit' ? 'border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed' : 'border-slate-200 bg-white focus:border-secondary focus:ring-2 focus:ring-secondary/20'}`} />
-                  {modalMode === 'edit' && <p className="mt-1 text-xs text-slate-400">Nomor dokumen tidak dapat diubah.</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Jenis Dokumen <span className="text-red-500">*</span></label>
-                  <select value={form.jenis} onChange={e => setForm(f => ({ ...f, jenis: e.target.value as Identitas['jenis'] }))}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-secondary">
-                    {JENIS_OPTIONS.map(j => <option key={j}>{j}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Negara Penerbit <span className="text-red-500">*</span></label>
-                  <select value={form.negaraPenerbit} onChange={e => setForm(f => ({ ...f, negaraPenerbit: e.target.value }))}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-secondary">
-                    {NEGARA_OPTIONS.map(n => <option key={n}>{n}</option>)}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700">Tanggal Terbit <span className="text-red-500">*</span></label>
-                    <input type="date" value={form.tanggalTerbit} onChange={e => setForm(f => ({ ...f, tanggalTerbit: e.target.value }))}
-                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-secondary" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700">Tanggal Habis <span className="text-red-500">*</span></label>
-                    <input type="date" value={form.tanggalHabis} onChange={e => setForm(f => ({ ...f, tanggalHabis: e.target.value }))}
-                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-secondary" />
-                  </div>
-                </div>
-                {formError && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</div>}
+              <div className="rounded-md bg-white/5 p-3 text-sm text-white">
+                <div className="text-xs">Award Miles</div>
+                <div className="mt-1 font-semibold">{awardMiles}</div>
               </div>
 
-              <div className="mt-5 flex gap-3">
-                <button onClick={() => setModalMode(null)}
-                  className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Batal</button>
-                <button onClick={handleSave}
-                  className="flex-1 rounded-xl bg-secondary py-2.5 text-sm font-bold text-white hover:bg-secondary/90">Simpan</button>
+              <div className="rounded-md bg-white/5 p-3 text-sm text-white">
+                <div className="text-xs">Total Miles</div>
+                <div className="mt-1 font-semibold">{totalMiles}</div>
+              </div>
+
+              <div className="rounded-md bg-white/5 p-3 text-sm text-white">
+                <div className="text-xs">Tanggal Bergabung</div>
+                <div className="mt-1 font-semibold">{userRec?.tanggal_bergabung ?? '-'}</div>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* Modal Hapus */}
-        {deleteTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-              <h2 className="text-lg font-bold text-slate-900">Hapus Identitas?</h2>
-              <p className="mt-2 text-sm text-slate-600">
-                Dokumen <span className="font-semibold">{deleteTarget.nomor}</span> ({deleteTarget.jenis}) akan dihapus secara permanen.
-              </p>
-              <div className="mt-5 flex gap-3">
-                <button onClick={() => setDeleteTarget(null)}
-                  className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Batal</button>
-                <button onClick={handleDelete}
-                  className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-bold text-white hover:bg-red-700">Hapus</button>
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold text-white">5 Transaksi Miles Terbaru</h3>
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-white/70">
+                      <th className="py-2">Tanggal</th>
+                      <th className="py-2">Jenis</th>
+                      <th className="py-2">Jumlah</th>
+                      <th className="py-2">Keterangan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="py-3 text-white/70">Tidak ada transaksi.</td>
+                      </tr>
+                    ) : (
+                      transactions.map((t, idx) => (
+                        <tr key={idx} className="border-t border-white/6">
+                          <td className="py-2 text-white/90">{t.tanggal}</td>
+                          <td className="py-2 text-white/90">{t.jenis}</td>
+                          <td className={`py-2 font-semibold ${t.jumlah >= 0 ? 'text-green-300' : 'text-rose-300'}`}>{(t.jumlah >= 0 ? '+' : '') + t.jumlah}</td>
+                          <td className="py-2 text-white/80">{t.keterangan ?? '-'}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
-          </div>
-        )}
+          </section>
+        ) : null}
 
+        {session.role === 'staf' ? (
+          <section className="col-span-2 rounded-xl bg-white/6 p-4">
+            <h2 className="text-lg font-semibold text-white">Staf Overview</h2>
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="rounded-md bg-white/5 p-3 text-sm text-white">
+                <div className="text-xs">ID Staf</div>
+                <div className="mt-1 font-semibold">{userRec?.id_staf ?? '-'}</div>
+              </div>
+
+              <div className="rounded-md bg-white/5 p-3 text-sm text-white">
+                <div className="text-xs">Maskapai</div>
+                <div className="mt-1 font-semibold">{userRec?.kode_maskapai ?? '-'}</div>
+              </div>
+
+              <div className="rounded-md bg-white/5 p-3 text-sm text-white">
+                <div className="text-xs">Klaim Menunggu (semua staf)</div>
+                <div className="mt-1 font-semibold">{claimSummary.waiting}</div>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="rounded-md bg-white/5 p-3 text-sm text-white">
+                <div className="text-xs">Klaim Disetujui (Anda)</div>
+                <div className="mt-1 font-semibold">{claims.filter((c) => c.handledBy === session.email && c.status === 'Disetujui').length}</div>
+              </div>
+
+              <div className="rounded-md bg-white/5 p-3 text-sm text-white">
+                <div className="text-xs">Klaim Ditolak (Anda)</div>
+                <div className="mt-1 font-semibold">{claims.filter((c) => c.handledBy === session.email && c.status === 'Ditolak').length}</div>
+              </div>
+            </div>
+          </section>
+        ) : null}
       </div>
     </main>
   )
