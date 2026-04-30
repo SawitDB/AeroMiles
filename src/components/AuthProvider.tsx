@@ -37,8 +37,6 @@ type SessionData = {
 
 const SESSION_KEY = 'aeromiles_session'
 const USERS_KEY = 'aeromiles_users'
-const CLAIMS_KEY = 'aeromiles_claim_missing_miles'
-const TRANSFERS_KEY = 'aeromiles_transfer'
 const SESSION_CHANGED_EVENT = 'aeromiles_session_changed'
 
 type StoredUser = {
