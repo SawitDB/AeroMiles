@@ -21,6 +21,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false)
 
   useEffect(() => {
+    // Seed mock users for frontend-only authentication if not present
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = window.localStorage.getItem('aeromiles_users')
+        if (!raw) {
+          const seed = [
+            { email: 'alice@example.com', password: 'hashed_password1', role: 'member', name: 'Alice Putri', first_mid_name: 'Alice' },
+            { email: 'budi@example.com', password: 'hashed_password2', role: 'member', name: 'Budi Santoso', first_mid_name: 'Budi' },
+            { email: 'citra@example.com', password: 'hashed_password3', role: 'member', name: 'Citra Dewi', first_mid_name: 'Citra' },
+            { email: 'dedi.staf@example.com', password: 'hashed_staff1', role: 'staf', name: 'Dedi Kurnia', first_mid_name: 'Dedi' },
+            { email: 'ela.staf@example.com', password: 'hashed_staff2', role: 'staf', name: 'Ela Mariana', first_mid_name: 'Ela' },
+          ]
+          window.localStorage.setItem('aeromiles_users', JSON.stringify(seed))
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     const state = loadAuthState()
     setUser(state.user)
     setIsHydrated(true)
