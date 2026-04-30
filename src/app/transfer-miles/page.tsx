@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-
 import { useAuth } from '@/components/AuthProvider'
 
 type TransferRecord = {
@@ -61,6 +60,11 @@ export default function Page() {
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
   }, [transfers])
 
+  const getType = (t: TransferRecord) => {
+    if (t.email_member_1 === user?.email) return 'Kirim'
+    return 'Terima'
+  }
+
   if (!isHydrated) {
     return (
       <main className="flex min-h-[calc(100vh-56px)] items-center justify-center p-6">
@@ -92,8 +96,14 @@ export default function Page() {
     }
 
     const amount = Number(jumlah)
+
     if (!Number.isFinite(amount) || amount <= 0) {
       setFormError('Jumlah miles harus lebih dari 0.')
+      return
+    }
+
+    if (amount > sessionMiles) {
+      setFormError('Saldo miles tidak mencukupi.')
       return
     }
 
@@ -192,7 +202,7 @@ export default function Page() {
 
                 <label className="space-y-2 text-sm font-medium text-slate-700">
                   <span>Saldo Miles</span>
-                  <input value="Derived attribute (tidak tersimpan di tabel MEMBER saat ini)" readOnly className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600 outline-none" />
+                  <input value={`${sessionMiles.toLocaleString('id-ID')} miles`} readOnly className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600 outline-none" />
                 </label>
               </div>
 
@@ -211,8 +221,12 @@ export default function Page() {
             {formError ? <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{formError}</p> : null}
 
             <div className="mt-6 flex justify-end">
-              <button onClick={handleSubmit} className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700">
-                Kirim Transfer
+              <button
+                onClick={handleSubmit}
+                disabled={isLoading}
+                className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isLoading ? 'Memproses...' : 'Kirim Transfer'}
               </button>
             </div>
           </div>
@@ -227,6 +241,7 @@ export default function Page() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-5 py-4">Tipe</th>
                   <th className="px-5 py-4">Pengirim</th>
                   <th className="px-5 py-4">Penerima</th>
                   <th className="px-5 py-4">Jumlah</th>
@@ -237,11 +252,16 @@ export default function Page() {
               <tbody>
                 {filteredTransfers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-14 text-center text-slate-400">Belum ada transfer miles yang tercatat.</td>
+                    <td colSpan={6} className="py-14 text-center text-slate-400">Belum ada transfer miles yang tercatat.</td>
                   </tr>
                 ) : (
                   filteredTransfers.map((transfer, idx) => (
                     <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/70">
+                      <td className="px-5 py-4">
+                        <span className={getType(transfer) === 'Kirim' ? 'text-red-500 font-bold' : 'text-green-500 font-bold'}>
+                          {getType(transfer)}
+                        </span>
+                      </td>
                       <td className="px-5 py-4 text-slate-700">{transfer.email_member_1}</td>
                       <td className="px-5 py-4 text-slate-700">{transfer.email_member_2}</td>
                       <td className="px-5 py-4 font-semibold text-slate-800">{transfer.jumlah.toLocaleString('id-ID')} miles</td>
