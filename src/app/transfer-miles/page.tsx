@@ -35,16 +35,13 @@ export default function Page() {
   const [catatan, setCatatan] = useState('')
   const [formError, setFormError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const sessionMiles = user?.totalMiles ?? 0
 
-  const fetchTransfers = async () => {
+  const fetchTransfers = () => {
     if (!user?.email) return
     try {
-      const res = await fetch(`/api/transfer?email=${encodeURIComponent(user.email)}`)
-      if (res.ok) {
-        const data = await res.json()
-        setTransfers(data)
-      }
+      const raw = localStorage.getItem('aeromiles_transfer')
+      const all: TransferRecord[] = raw ? JSON.parse(raw) : []
+      setTransfers(all)
     } catch (err) {
       console.error(err)
     }
@@ -55,11 +52,35 @@ export default function Page() {
     fetchTransfers()
   }, [isHydrated, user?.email])
 
+  // Dynamic balance calculation for dummy data
+  const sessionMiles = useMemo(() => {
+    if (!user) return 0
+    let balance = 5000 // Base miles
+    
+    // Add miles from approved claims
+    const claimsRaw = localStorage.getItem('aeromiles_claim')
+    const claims: any[] = claimsRaw ? JSON.parse(claimsRaw) : []
+    claims.forEach(c => {
+      if (c.email_member === user.email && c.status_penerimaan === 'Disetujui') {
+        balance += (c.maskapai === 'GA' ? 1000 : 500)
+      }
+    })
+
+    // Adjust for transfers
+    transfers.forEach(t => {
+      if (t.email_member_1 === user.email) balance -= t.jumlah
+      if (t.email_member_2 === user.email) balance += t.jumlah
+    })
+
+    return balance
+  }, [user, transfers])
+
   const filteredTransfers = useMemo(() => {
+    if (!user) return []
     return transfers
-      .slice()
+      .filter(t => t.email_member_1 === user.email || t.email_member_2 === user.email)
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-  }, [transfers])
+  }, [transfers, user])
 
   if (!isHydrated) {
     return (
@@ -80,7 +101,7 @@ export default function Page() {
     )
   }
 
-  async function handleSubmit() {
+  function handleSubmit() {
     if (!recipientEmail || !jumlah) {
       setFormError('Semua field wajib diisi.')
       return
@@ -99,31 +120,28 @@ export default function Page() {
 
     setIsLoading(true)
     try {
-      const res = await fetch('/api/transfer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email_member_1: user?.email,
-          email_member_2: recipientEmail,
-          jumlah: amount,
-          catatan: catatan.trim() || null,
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) {
-        setFormError(data.error || 'Gagal melakukan transfer.')
-        return
+      const newT: TransferRecord = {
+        email_member_1: user?.email || '',
+        email_member_2: recipientEmail,
+        timestamp: new Date().toISOString(),
+        jumlah: amount,
+        catatan: catatan.trim() || null,
       }
 
+      const raw = localStorage.getItem('aeromiles_transfer')
+      const all: TransferRecord[] = raw ? JSON.parse(raw) : []
+      const next = [...all, newT]
+      
+      localStorage.setItem('aeromiles_transfer', JSON.stringify(next))
+      
       setRecipientEmail('')
       setJumlah('')
       setCatatan('')
       setFormError('')
-      await fetchTransfers()
+      fetchTransfers()
     } catch (err) {
       console.error(err)
-      setFormError('Gagal melakukan transfer.')
+      setFormError('Gagal melakukan transfer ke storage.')
     } finally {
       setIsLoading(false)
     }
