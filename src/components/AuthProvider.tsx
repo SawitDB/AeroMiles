@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import type { User } from '@/lib/auth/types'
+import { seedAllData } from '@/lib/seedData'
 
 type AuthContextValue = {
   user: User | null
@@ -225,6 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     seedUsersIfMissing()
+    seedAllData()
     setUser(readSessionUser())
     setIsHydrated(true)
 
