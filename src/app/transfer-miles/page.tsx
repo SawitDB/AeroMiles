@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-
 import { useAuth } from '@/components/AuthProvider'
 
 type TransferRecord = {
@@ -87,6 +86,11 @@ export default function Page() {
     return 'Terima'
   }
 
+  const getType = (t: TransferRecord) => {
+    if (t.email_member_1 === user?.email) return 'Kirim'
+    return 'Terima'
+  }
+
   if (!isHydrated) {
     return (
       <main className="flex min-h-[calc(100vh-56px)] items-center justify-center p-6">
@@ -118,6 +122,7 @@ export default function Page() {
     }
 
     const amount = Number(jumlah)
+
     if (!Number.isFinite(amount) || amount <= 0) {
       setFormError('Jumlah miles harus lebih dari 0.')
       return
