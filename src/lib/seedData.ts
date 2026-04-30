@@ -160,7 +160,7 @@ export function seedAllData() {
         pnr: "GHIJKL",
         status_penerimaan: "Menunggu",
         timestamp: "2026-04-25T14:30:00Z",
-        email_staf: null,
+        email_staf: "staf@aeromiles.com",
       },
     ];
     localStorage.setItem("aeromiles_claim", JSON.stringify(claims));
