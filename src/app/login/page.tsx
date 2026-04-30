@@ -3,6 +3,7 @@
 import { FormEvent, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { loadMembers } from '@/lib/auth/storage'
 
 const HARD_CODED_USERS = [
   {
@@ -74,6 +75,7 @@ export default function LoginPage() {
         country_code: '',
         kewarganegaraan: '',
         tanggal_lahir: '',
+        id_tier: 'Blue',
       }
 
       window.localStorage.setItem('aeromiles_session', JSON.stringify(session))

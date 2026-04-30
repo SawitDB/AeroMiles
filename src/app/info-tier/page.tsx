@@ -85,6 +85,7 @@ export default function InfoTierPage() {
       );
 
   const currentTier = tiers.find((t) => t.id_tier === session.id_tier);
+      console.log(session)
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8">
@@ -103,6 +104,7 @@ export default function InfoTierPage() {
               className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-sm"
               style={{ backgroundColor: TIER_COLORS[session.id_tier] }}
             >
+
               {session.id_tier.charAt(0)}
             </div>
             <div>

@@ -108,14 +108,15 @@ export default function RedeemHadiahPage() {
 
   const handleRedeem = (item: Hadiah) => {
     // Re-validate
-    if (awardMiles < item.miles) {
-      alert("❌ Award miles tidak cukup untuk redeem hadiah ini.");
-      return;
-    }
-    if (!isValidToday(item.valid_start_date, item.program_end)) {
-      alert("❌ Hadiah ini sudah tidak tersedia lagi.");
-      return;
-    }
+    // buat tk3 ini frontend aja dulu
+    // if (awardMiles < item.miles) {
+    //   alert("❌ Award miles tidak cukup untuk redeem hadiah ini.");
+    //   return;
+    // }
+    // if (!isValidToday(item.valid_start_date, item.program_end)) {
+    //   alert("❌ Hadiah ini sudah tidak tersedia lagi.");
+    //   return;
+    // }
 
     setSelectedHadiah(item);
     setShowModal(true);
@@ -168,10 +169,10 @@ export default function RedeemHadiahPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8">
+    <main className="min-h-screen bg-gradient-to-br from-secondary-700 to-secondary-500 px-4 py-8">
       <div className="mx-auto max-w-4xl">
-        <h1 className="mb-2 text-3xl font-bold text-gray-900">Redeem Hadiah</h1>
-        <p className="mb-8 text-gray-600">
+        <h1 className="mb-2 text-3xl font-bold text-white">Redeem Hadiah</h1>
+        <p className="mb-8 text-white">
           Tukarkan award miles kamu dengan hadiah menarik
         </p>
 
@@ -182,7 +183,7 @@ export default function RedeemHadiahPage() {
             className={`pb-3 font-semibold transition-colors ${
               activeTab === "katalog"
                 ? "border-b-2 border-primary text-primary"
-                : "text-gray-600 hover:text-gray-900"
+                : "text-white hover:text-gray-400"
             }`}
           >
             Katalog Hadiah
@@ -192,7 +193,7 @@ export default function RedeemHadiahPage() {
             className={`pb-3 font-semibold transition-colors ${
               activeTab === "riwayat"
                 ? "border-b-2 border-primary text-primary"
-                : "text-gray-600 hover:text-gray-900"
+                : "text-white hover:text-gray-400"
             }`}
           >
             Riwayat Redeem
@@ -210,7 +211,8 @@ export default function RedeemHadiahPage() {
               <div className="grid gap-6 md:grid-cols-2">
                 {availableHadiah.map((item) => {
                   const isExpanded = expandedDesc === item.kode_hadiah;
-                  const canRedeem = awardMiles >= item.miles;
+                //   const canRedeem = awardMiles >= item.miles;
+                const canRedeem = true; // buat tk3 frontend aja dulu
 
                   return (
                     <div
