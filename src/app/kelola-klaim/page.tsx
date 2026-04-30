@@ -57,16 +57,15 @@ export default function Page() {
   const [reviewError, setReviewError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const fetchClaims = async () => {
+  const fetchClaims = () => {
     setIsLoading(true)
     try {
-      const res = await fetch('/api/claim-review')
-      if (!res.ok) throw new Error('Gagal mengambil data klaim')
-      const data = await res.json()
+      const raw = localStorage.getItem('aeromiles_claim')
+      const data = raw ? JSON.parse(raw) : []
       setClaims(data)
     } catch (err) {
       console.error(err)
-      setReviewError('Gagal memuat klaim dari server.')
+      setReviewError('Gagal memuat klaim dari storage.')
     } finally {
       setIsLoading(false)
     }
@@ -115,32 +114,25 @@ export default function Page() {
     setReviewError('')
   }
 
-  async function saveReview() {
+  function saveReview() {
     if (!selectedClaim) return
 
     setIsLoading(true)
     try {
-      const res = await fetch('/api/claim-review', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: selectedClaim.id,
-          status_penerimaan: reviewStatus,
-          email_staf: user?.email,
-        }),
-      })
+      const raw = localStorage.getItem('aeromiles_claim')
+      let list: ClaimRequest[] = raw ? JSON.parse(raw) : []
 
-      const data = await res.json()
-      if (!res.ok) {
-        setReviewError(data.error || 'Gagal menyimpan review.')
-        return
-      }
+      list = list.map(c => c.id === selectedClaim.id
+        ? { ...c, status_penerimaan: reviewStatus, email_staf: user?.email }
+        : c
+      )
 
+      localStorage.setItem('aeromiles_claim', JSON.stringify(list))
       setSelectedClaim(null)
-      await fetchClaims()
+      fetchClaims()
     } catch (err) {
       console.error(err)
-      setReviewError('Gagal menyimpan review.')
+      setReviewError('Gagal menyimpan review ke storage.')
     } finally {
       setIsLoading(false)
     }

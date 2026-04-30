@@ -115,13 +115,58 @@ export function seedAllData() {
     localStorage.setItem("aeromiles_redeem", JSON.stringify([]));
   }
 
-  // Seed aeromiles_transfer (transfer history - starts empty)
+  // Seed aeromiles_transfer (transfer history)
   if (!localStorage.getItem("aeromiles_transfer")) {
-    localStorage.setItem("aeromiles_transfer", JSON.stringify([]));
+    const transfers = [
+      {
+        email_member_1: "member@aeromiles.com",
+        email_member_2: "other@aeromiles.com",
+        timestamp: "2026-04-28T09:15:00Z",
+        jumlah: 1000,
+        catatan: "Hadiah ulang tahun",
+      },
+    ];
+    localStorage.setItem("aeromiles_transfer", JSON.stringify(transfers));
   }
 
-  // Seed aeromiles_claim (claim history - starts empty)
+  // Seed aeromiles_claim (claim history)
   if (!localStorage.getItem("aeromiles_claim")) {
-    localStorage.setItem("aeromiles_claim", JSON.stringify([]));
+    const claims = [
+      {
+        id: 1,
+        email_member: "member@aeromiles.com",
+        maskapai: "GA",
+        bandara_asal: "CGK",
+        bandara_tujuan: "DPS",
+        tanggal_penerbangan: "2026-04-10",
+        flight_number: "GA402",
+        nomor_tiket: "1262345678901",
+        kelas_kabin: "Economy",
+        pnr: "ABCDEF",
+        status_penerimaan: "Disetujui",
+        timestamp: "2026-04-15T10:00:00Z",
+        email_staf: "staf@aeromiles.com",
+      },
+      {
+        id: 2,
+        email_member: "member@aeromiles.com",
+        maskapai: "SQ",
+        bandara_asal: "SIN",
+        bandara_tujuan: "LHR",
+        tanggal_penerbangan: "2026-04-20",
+        flight_number: "SQ308",
+        nomor_tiket: "6182345678902",
+        kelas_kabin: "Business",
+        pnr: "GHIJKL",
+        status_penerimaan: "Menunggu",
+        timestamp: "2026-04-25T14:30:00Z",
+        email_staf: "staf@aeromiles.com",
+      },
+    ];
+    localStorage.setItem("aeromiles_claim", JSON.stringify(claims));
   }
+
+  // Empty placeholders
+  if (!localStorage.getItem("aeromiles_member_amp")) localStorage.setItem("aeromiles_member_amp", JSON.stringify([]));
+  if (!localStorage.getItem("aeromiles_redeem")) localStorage.setItem("aeromiles_redeem", JSON.stringify([]));
 }
