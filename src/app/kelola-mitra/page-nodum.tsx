@@ -20,6 +20,33 @@ const EMPTY_FORM = {
   tanggal_kerja_sama: '',
 }
 
+/* ─── Storage helpers ─────────────────────────────────────── */
+function loadMitra(): Mitra[] {
+  if (typeof window === 'undefined') return []
+  try { return JSON.parse(localStorage.getItem('aeromiles_mitra') || '[]') } catch { return [] }
+}
+function saveMitra(data: Mitra[]) {
+  localStorage.setItem('aeromiles_mitra', JSON.stringify(data))
+}
+function loadPenyedia(): Penyedia[] {
+  if (typeof window === 'undefined') return []
+  try { return JSON.parse(localStorage.getItem('aeromiles_penyedia') || '[]') } catch { return [] }
+}
+function savePenyedia(data: Penyedia[]) {
+  localStorage.setItem('aeromiles_penyedia', JSON.stringify(data))
+}
+function getNextPenyediaId(list: Penyedia[]): number {
+  if (list.length === 0) return 1
+  return Math.max(...list.map(p => p.id)) + 1
+}
+function loadHadiah(): { id_penyedia: number }[] {
+  if (typeof window === 'undefined') return []
+  try { return JSON.parse(localStorage.getItem('aeromiles_hadiah') || '[]') } catch { return [] }
+}
+function saveHadiah(data: any[]) {
+  localStorage.setItem('aeromiles_hadiah', JSON.stringify(data))
+}
+
 /* ─── Component ──────────────────────────────────────────── */
 export default function KelolaMitraPage() {
   const [session, setSession] = useState<{ role?: string; email?: string } | null>(null)
@@ -34,38 +61,17 @@ export default function KelolaMitraPage() {
   const [deleteTarget, setDeleteTarget] = useState<Mitra | null>(null)
   const [hadiah, setHadiah] = useState<{ id_penyedia: number }[]>([])
 
-  // Fungsi untuk mengambil data dari Database melalui API
-  const fetchDatabase = async () => {
-    try {
-      const resMitra = await fetch('/api/mitra');
-      if (resMitra.ok) {
-        const dataMitra = await resMitra.json();
-        setMitra(dataMitra);
-      }
-      
-      // Mengambil data hadiah untuk menghitung jumlah hadiah per mitra
-      const resHadiah = await fetch('/api/hadiah');
-      if (resHadiah.ok) {
-        const dataHadiah = await resHadiah.json();
-        setHadiah(dataHadiah);
-      }
-    } catch (error) {
-      console.error("Gagal mengambil data database:", error);
-    }
-  }
-
   useEffect(() => {
-    // Session sementara tetap pakai localStorage untuk tugas TK03
     const raw = typeof window !== 'undefined' ? localStorage.getItem('aeromiles_session') : null
     if (raw) {
       try { setSession(JSON.parse(raw)) } catch { setSession(null) }
     }
-    
-    // Panggil data dari DB
-    fetchDatabase().then(() => setIsHydrated(true));
+    setMitra(loadMitra())
+    setHadiah(loadHadiah())
+    setIsHydrated(true)
   }, [])
 
-  /* ── Filter ── */
+  /* ── Filter (DIPINDAHKAN KE ATAS SEBELUM RETURN KONDISIONAL) ── */
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     return mitra.filter(m =>
@@ -78,7 +84,7 @@ export default function KelolaMitraPage() {
   /* ── EARLY RETURNS ── */
   if (!isHydrated) return (
     <main className="flex min-h-screen items-center justify-center">
-      <p className="text-sm text-white/70">Memuat data dari database…</p>
+      <p className="text-sm text-white/70">Memuat…</p>
     </main>
   )
   if (isHydrated && session && session.role !== 'staf') return (
@@ -95,17 +101,13 @@ export default function KelolaMitraPage() {
     setFormError('')
     setModalMode('add')
   }
-
   function openEdit(m: Mitra) {
     setEditTarget(m)
-    // Format tanggal untuk input date (YYYY-MM-DD)
-    const formattedDate = new Date(m.tanggal_kerja_sama).toISOString().split('T')[0];
-    setForm({ email_mitra: m.email_mitra, nama_mitra: m.nama_mitra, tanggal_kerja_sama: formattedDate })
+    setForm({ email_mitra: m.email_mitra, nama_mitra: m.nama_mitra, tanggal_kerja_sama: m.tanggal_kerja_sama })
     setFormError('')
     setModalMode('edit')
   }
-
-  async function handleSave() {
+  function handleSave() {
     if (!form.email_mitra || !form.nama_mitra || !form.tanggal_kerja_sama) {
       setFormError('Semua field wajib diisi.')
       return
@@ -113,60 +115,57 @@ export default function KelolaMitraPage() {
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRe.test(form.email_mitra)) { setFormError('Format email tidak valid.'); return }
 
-    try {
-      if (modalMode === 'add') {
-        const response = await fetch('/api/mitra', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form)
-        });
-
-        if (!response.ok) {
-          const err = await response.json();
-          setFormError(err.error || 'Gagal menambahkan mitra.');
-          return;
-        }
-      } else if (modalMode === 'edit' && editTarget) {
-        const response = await fetch('/api/mitra', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...form, old_email: editTarget.email_mitra })
-        });
-
-        if (!response.ok) {
-          const err = await response.json();
-          setFormError(err.error || 'Gagal mengubah mitra.');
-          return;
-        }
+    if (modalMode === 'add') {
+      if (mitra.some(m => m.email_mitra.toLowerCase() === form.email_mitra.toLowerCase())) {
+        setFormError('Email mitra sudah terdaftar.')
+        return
       }
+      // Create new PENYEDIA entry
+      const penyediaList = loadPenyedia()
+      const newId = getNextPenyediaId(penyediaList)
+      const newPenyedia = [...penyediaList, { id: newId }]
+      savePenyedia(newPenyedia)
 
-      await fetchDatabase(); // Refresh data setelah sukses simpan
-      setModalMode(null); 
-      setEditTarget(null);
-    } catch (error) {
-      setFormError('Terjadi kesalahan jaringan.');
+      // Create MITRA
+      const newMitra: Mitra = {
+        email_mitra: form.email_mitra,
+        id_penyedia: newId,
+        nama_mitra: form.nama_mitra,
+        tanggal_kerja_sama: form.tanggal_kerja_sama,
+      }
+      const next = [...mitra, newMitra]
+      setMitra(next); saveMitra(next)
+
+    } else if (modalMode === 'edit' && editTarget) {
+      const next = mitra.map(m => m.email_mitra === editTarget.email_mitra
+        ? { ...m, nama_mitra: form.nama_mitra, tanggal_kerja_sama: form.tanggal_kerja_sama }
+        : m)
+      setMitra(next); saveMitra(next)
     }
+    setModalMode(null); setEditTarget(null)
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!deleteTarget) return
+    // Remove the mitra
+    const nextMitra = mitra.filter(m => m.email_mitra !== deleteTarget.email_mitra)
+    saveMitra(nextMitra)
+    setMitra(nextMitra)
 
-    try {
-      const response = await fetch('/api/mitra', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email_mitra: deleteTarget.email_mitra })
-      });
+    // Remove associated PENYEDIA
+    const penyediaList = loadPenyedia()
+    const nextPenyedia = penyediaList.filter(p => p.id !== deleteTarget.id_penyedia)
+    savePenyedia(nextPenyedia)
 
-      if (response.ok) {
-        await fetchDatabase(); // Refresh data
-        setDeleteTarget(null);
-      } else {
-        alert("Gagal menghapus mitra.");
-      }
-    } catch (error) {
-      alert("Terjadi kesalahan saat menghapus.");
-    }
+    // Cascade: remove hadiah from that penyedia
+    const hadiahList: any[] = (() => {
+      try { return JSON.parse(localStorage.getItem('aeromiles_hadiah') || '[]') } catch { return [] }
+    })()
+    const nextHadiah = hadiahList.filter((h: any) => h.id_penyedia !== deleteTarget.id_penyedia)
+    saveHadiah(nextHadiah)
+    setHadiah(nextHadiah)
+
+    setDeleteTarget(null)
   }
 
   function hadiahCount(id_penyedia: number) {
@@ -181,7 +180,6 @@ export default function KelolaMitraPage() {
     } catch { return d }
   }
 
-  // TAMPILAN UI (Tidak ada yang diubah, tetap pakai Tailwind dari Anda)
   return (
     <main className="min-h-[calc(100vh-56px)] p-6">
       <div className="mx-auto w-full max-w-6xl">
@@ -269,6 +267,28 @@ export default function KelolaMitraPage() {
           </table>
         </div>
 
+        {/* Mitra cards on mobile as supplement */}
+        <div className="mt-6 grid gap-4 sm:hidden">
+          {filtered.map(m => (
+            <div key={m.email_mitra} className="rounded-2xl bg-white/95 p-4 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="font-bold text-slate-800">{m.nama_mitra}</div>
+                  <div className="mt-0.5 text-xs text-slate-500">{m.email_mitra}</div>
+                </div>
+                <span className="rounded-full bg-purple-100 px-2 py-0.5 font-mono text-xs font-bold text-purple-700">#{m.id_penyedia}</span>
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <div className="text-xs text-slate-500">Kerja sama sejak {fmtDate(m.tanggal_kerja_sama)}</div>
+                <div className="flex gap-1">
+                  <button onClick={() => openEdit(m)} className="rounded-lg px-2 py-1 text-blue-600 hover:bg-blue-50">✏️</button>
+                  <button onClick={() => setDeleteTarget(m)} className="rounded-lg px-2 py-1 text-red-500 hover:bg-red-50">🗑️</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* ═══ MODAL ADD / EDIT ═══ */}
         {modalMode && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
@@ -303,6 +323,12 @@ export default function KelolaMitraPage() {
                   <input type="date" value={form.tanggal_kerja_sama} onChange={e => setForm(f => ({ ...f, tanggal_kerja_sama: e.target.value }))}
                     className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-400" />
                 </div>
+
+                {modalMode === 'add' && (
+                  <div className="rounded-xl bg-blue-50 px-4 py-3 text-xs text-blue-700">
+                    ℹ️ Sistem akan otomatis membuat entri <strong>Penyedia</strong> baru dan mengasosiasikannya dengan Mitra ini.
+                  </div>
+                )}
 
                 {formError && (
                   <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</div>
@@ -351,6 +377,7 @@ export default function KelolaMitraPage() {
             </div>
           </div>
         )}
+
       </div>
     </main>
   )

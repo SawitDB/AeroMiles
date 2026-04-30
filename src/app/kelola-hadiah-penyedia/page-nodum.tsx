@@ -26,7 +26,51 @@ const EMPTY_FORM = {
   id_penyedia: '',
 }
 
-/* ─── Helpers (Dipertahankan untuk Status Badge) ──────────── */
+/* ─── Helpers ─────────────────────────────────────────────── */
+function loadHadiah(): Hadiah[] {
+  if (typeof window === 'undefined') return []
+  try { return JSON.parse(localStorage.getItem('aeromiles_hadiah') || '[]') } catch { return [] }
+}
+function saveHadiah(data: Hadiah[]) {
+  localStorage.setItem('aeromiles_hadiah', JSON.stringify(data))
+}
+function loadPenyedia(): Penyedia[] {
+  if (typeof window === 'undefined') return []
+  const penyediaRaw: { id: number }[] = (() => {
+    try { return JSON.parse(localStorage.getItem('aeromiles_penyedia') || '[]') } catch { return [] }
+  })()
+  const mitraRaw: { email_mitra: string; id_penyedia: number; nama_mitra: string }[] = (() => {
+    try { return JSON.parse(localStorage.getItem('aeromiles_mitra') || '[]') } catch { return [] }
+  })()
+  const maskapaiRaw: { kode_maskapai: string; nama_maskapai: string; id_penyedia?: number }[] = (() => {
+    try { return JSON.parse(localStorage.getItem('aeromiles_maskapai') || '[]') } catch { return [] }
+  })()
+  const result: Penyedia[] = []
+  // add maskapai as penyedia
+  maskapaiRaw.forEach(m => {
+    if (m.id_penyedia) result.push({ id: m.id_penyedia, label: `${m.kode_maskapai} – ${m.nama_maskapai}`, type: 'maskapai' })
+  })
+  // add mitra as penyedia
+  mitraRaw.forEach(m => {
+    result.push({ id: m.id_penyedia, label: `${m.nama_mitra} (Mitra)`, type: 'mitra' })
+  })
+  // any remaining penyedia not matched
+  penyediaRaw.forEach(p => {
+    if (!result.find(r => r.id === p.id)) {
+      result.push({ id: p.id, label: `Penyedia #${p.id}`, type: 'mitra' })
+    }
+  })
+  return result
+}
+function getNextKodeHadiah(list: Hadiah[]): string {
+  if (list.length === 0) return 'RWD-001'
+  const nums = list.map(h => {
+    const m = h.kode_hadiah.match(/RWD-(\d+)/)
+    return m ? parseInt(m[1]) : 0
+  })
+  const next = Math.max(...nums) + 1
+  return `RWD-${String(next).padStart(3, '0')}`
+}
 function isExpired(program_end: string): boolean {
   return new Date(program_end) < new Date()
 }
@@ -41,54 +85,29 @@ export default function KelolaHadiahPenyediaPage() {
   const [isHydrated, setIsHydrated] = useState(false)
   const [activeTab, setActiveTab] = useState<'hadiah' | 'penyedia'>('hadiah')
 
-  // State
+  // Hadiah state
   const [hadiah, setHadiah] = useState<Hadiah[]>([])
   const [penyediaList, setPenyediaList] = useState<Penyedia[]>([])
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('Semua')
   const [filterPenyedia, setFilterPenyedia] = useState('Semua')
-  
   const [modalMode, setModalMode] = useState<ModalMode>(null)
   const [editTarget, setEditTarget] = useState<Hadiah | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [formError, setFormError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Hadiah | null>(null)
 
-  // Fungsi Fetch ke API PostgreSQL
-  const fetchDatabase = async () => {
-    try {
-      const resHadiah = await fetch('/api/hadiah');
-      if (resHadiah.ok) {
-        const dataHadiah = await resHadiah.json();
-        // Format tanggal agar sesuai dengan timezone lokal
-        const formattedHadiah = dataHadiah.map((h: any) => ({
-          ...h,
-          valid_start_date: new Date(h.valid_start_date).toISOString().split('T')[0],
-          program_end: new Date(h.program_end).toISOString().split('T')[0]
-        }));
-        setHadiah(formattedHadiah);
-      }
-
-      const resPenyedia = await fetch('/api/penyedia');
-      if (resPenyedia.ok) {
-        const dataPenyedia = await resPenyedia.json();
-        setPenyediaList(dataPenyedia);
-      }
-    } catch (error) {
-      console.error("Gagal mengambil data:", error);
-    }
-  };
-
   useEffect(() => {
     const raw = typeof window !== 'undefined' ? localStorage.getItem('aeromiles_session') : null
     if (raw) {
       try { setSession(JSON.parse(raw)) } catch { setSession(null) }
     }
-    
-    fetchDatabase().then(() => setIsHydrated(true));
+    setHadiah(loadHadiah())
+    setPenyediaList(loadPenyedia())
+    setIsHydrated(true)
   }, [])
 
-  /* ── Filter ── */
+  /* ── Hadiah filtering (DIPINDAHKAN KE ATAS SINI) ── */
   const filtered = useMemo(() => {
     return hadiah.filter(h => {
       const q = search.toLowerCase()
@@ -103,12 +122,67 @@ export default function KelolaHadiahPenyediaPage() {
     })
   }, [hadiah, search, filterStatus, filterPenyedia])
 
-  const refreshPenyedia = () => fetchDatabase();
+  const refreshPenyedia = () => setPenyediaList(loadPenyedia())
 
-  /* ── EARLY RETURNS ── */
+  function openAdd() {
+    setForm(EMPTY_FORM)
+    setFormError('')
+    setModalMode('add')
+  }
+  function openEdit(h: Hadiah) {
+    setEditTarget(h)
+    setForm({
+      nama: h.nama, miles: String(h.miles), deskripsi: h.deskripsi,
+      valid_start_date: h.valid_start_date, program_end: h.program_end,
+      id_penyedia: String(h.id_penyedia),
+    })
+    setFormError('')
+    setModalMode('edit')
+  }
+  function handleSave() {
+    if (!form.nama || !form.miles || !form.valid_start_date || !form.program_end || !form.id_penyedia) {
+      setFormError('Semua field wajib diisi.')
+      return
+    }
+    if (Number(form.miles) <= 0) { setFormError('Miles harus lebih dari 0.'); return }
+    if (form.valid_start_date > form.program_end) { setFormError('Tanggal mulai tidak boleh setelah tanggal akhir.'); return }
+
+    if (modalMode === 'add') {
+      const newH: Hadiah = {
+        kode_hadiah: getNextKodeHadiah(hadiah),
+        nama: form.nama, miles: Number(form.miles),
+        deskripsi: form.deskripsi, valid_start_date: form.valid_start_date,
+        program_end: form.program_end, id_penyedia: Number(form.id_penyedia),
+      }
+      const next = [...hadiah, newH]
+      setHadiah(next); saveHadiah(next)
+    } else if (modalMode === 'edit' && editTarget) {
+      const next = hadiah.map(h => h.kode_hadiah === editTarget.kode_hadiah
+        ? { ...h, nama: form.nama, miles: Number(form.miles), deskripsi: form.deskripsi, valid_start_date: form.valid_start_date, program_end: form.program_end, id_penyedia: Number(form.id_penyedia) }
+        : h)
+      setHadiah(next); saveHadiah(next)
+    }
+    setModalMode(null); setEditTarget(null)
+  }
+  function handleDelete() {
+    if (!deleteTarget) return
+    const next = hadiah.filter(h => h.kode_hadiah !== deleteTarget.kode_hadiah)
+    setHadiah(next); saveHadiah(next); setDeleteTarget(null)
+  }
+
+  function getPenyediaLabel(id: number) {
+    return penyediaList.find(p => p.id === id)?.label ?? `Penyedia #${id}`
+  }
+  function getStatusBadge(h: Hadiah) {
+    if (isExpired(h.program_end)) return <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">Kedaluwarsa</span>
+    if (isActive(h)) return <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">Aktif</span>
+    return <span className="rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-semibold text-yellow-700">Belum Mulai</span>
+  }
+
+  /* ── EARLY RETURNS (DITEMPATKAN SETELAH SEMUA HOOK) ── */
   if (!isHydrated) return (
     <main className="flex min-h-screen items-center justify-center">
-      <p className="text-sm text-white/70">Memuat data dari database…</p>
+      <p className="text-sm text-white/70">Memuat…</p>
     </main>
   )
   if (isHydrated && session && session.role !== 'staf') return (
@@ -119,98 +193,6 @@ export default function KelolaHadiahPenyediaPage() {
       </div>
     </main>
   )
-
-  function openAdd() {
-    setForm(EMPTY_FORM)
-    setFormError('')
-    setModalMode('add')
-  }
-
-  function openEdit(h: Hadiah) {
-    setEditTarget(h)
-    setForm({
-      nama: h.nama, 
-      miles: String(h.miles), 
-      deskripsi: h.deskripsi || '',
-      valid_start_date: h.valid_start_date, 
-      program_end: h.program_end,
-      id_penyedia: String(h.id_penyedia),
-    })
-    setFormError('')
-    setModalMode('edit')
-  }
-
-  async function handleSave() {
-    if (!form.nama || !form.miles || !form.valid_start_date || !form.program_end || !form.id_penyedia) {
-      setFormError('Semua field wajib diisi.')
-      return
-    }
-    if (Number(form.miles) <= 0) { setFormError('Miles harus lebih dari 0.'); return }
-    if (form.valid_start_date > form.program_end) { setFormError('Tanggal mulai tidak boleh setelah tanggal akhir.'); return }
-
-    try {
-      if (modalMode === 'add') {
-        const response = await fetch('/api/hadiah', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form)
-        });
-        if (!response.ok) {
-          const err = await response.json();
-          setFormError(err.error || 'Gagal menambahkan hadiah.');
-          return;
-        }
-      } else if (modalMode === 'edit' && editTarget) {
-        const response = await fetch('/api/hadiah', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...form, kode_hadiah: editTarget.kode_hadiah })
-        });
-        if (!response.ok) {
-          const err = await response.json();
-          setFormError(err.error || 'Gagal mengubah hadiah.');
-          return;
-        }
-      }
-
-      await fetchDatabase();
-      setModalMode(null); 
-      setEditTarget(null);
-    } catch (error) {
-      setFormError('Terjadi kesalahan jaringan.');
-    }
-  }
-
-  async function handleDelete() {
-    if (!deleteTarget) return
-
-    try {
-      const response = await fetch('/api/hadiah', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kode_hadiah: deleteTarget.kode_hadiah })
-      });
-
-      if (response.ok) {
-        await fetchDatabase();
-        setDeleteTarget(null);
-      } else {
-        alert("Gagal menghapus hadiah.");
-      }
-    } catch (error) {
-      alert("Terjadi kesalahan saat menghapus.");
-    }
-  }
-
-  function getPenyediaLabel(id: number) {
-    return penyediaList.find(p => p.id === id)?.label ?? `Penyedia #${id}`
-  }
-
-  function getStatusBadge(h: Hadiah) {
-    if (isExpired(h.program_end)) return <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">Kedaluwarsa</span>
-    if (isActive(h)) return <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">Aktif</span>
-    return <span className="rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-semibold text-yellow-700">Belum Mulai</span>
-  }
 
   return (
     <main className="min-h-[calc(100vh-56px)] p-6">
@@ -286,7 +268,6 @@ export default function KelolaHadiahPenyediaPage() {
                   <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     <th className="px-4 py-4">Kode</th>
                     <th className="px-4 py-4">Nama Hadiah</th>
-                    <th className="px-4 py-4">Deskripsi</th>
                     <th className="px-4 py-4">Penyedia</th>
                     <th className="px-4 py-4">Miles</th>
                     <th className="px-4 py-4">Periode Valid</th>
@@ -296,18 +277,14 @@ export default function KelolaHadiahPenyediaPage() {
                 </thead>
                 <tbody>
                   {filtered.length === 0
-                    ? <tr><td colSpan={8} className="py-12 text-center text-sm text-slate-400">Tidak ada data hadiah.</td></tr>
+                    ? <tr><td colSpan={7} className="py-12 text-center text-sm text-slate-400">Tidak ada data hadiah.</td></tr>
                     : filtered.map(h => (
                       <tr key={h.kode_hadiah} className="border-b border-slate-50 hover:bg-slate-50/60">
                         <td className="px-4 py-3 font-mono font-semibold text-blue-600">{h.kode_hadiah}</td>
-                        <td className="px-4 py-3 font-medium text-slate-800">
-                          {h.nama}
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-slate-800">{h.nama}</div>
+                          {h.deskripsi && <div className="mt-0.5 text-xs text-slate-400 line-clamp-1">{h.deskripsi}</div>}
                         </td>
-
-                        <td className="px-4 py-3 text-xs text-slate-500 max-w-[200px] truncate" title={h.deskripsi}>
-                          {h.deskripsi || '-'}
-                        </td>
-
                         <td className="px-4 py-3 text-slate-600">{getPenyediaLabel(h.id_penyedia)}</td>
                         <td className="px-4 py-3 font-semibold text-slate-700">{h.miles.toLocaleString()}</td>
                         <td className="px-4 py-3 text-xs text-slate-500">
