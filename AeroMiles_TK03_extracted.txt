@@ -1,0 +1,1405 @@
+Tugas Kelompok 3 - AeroMiles 
+
+Buka Drive 
+
+Tugas Kelompok 3 - AeroMiles 
+
+Tugas Kelompok - TK03 
+
+Implementasi koneksi UI – SQL DDL & Frontend 
+
+Aeromiles 
+
+Case 2 
+
+Penulis 
+
+: 
+
+Tim Dosen & Tim Asisten Dosen 
+
+Versi 
+
+: 
+
+1 (20260415-2345) 
+
+© 2025, Fakultas Ilmu Komputer Universitas
+ Indonesia 
+
+⌛ Riwayat Versi 
+
+Setiap “Versi” yang dimaksudkan pada riwayat ini dan dijadikan rujukan utama
+ bagi dokumen ini memuat perubahan yang bersifat substantif
+ sehingga perlu diketahui oleh pemangku kepentingan dokumen ini.
+ Riwayat versi ini diurutkan secara kronologis terurut dari versi
+ paling akhir pada baris pertama hingga versi paling awal pada
+ baris terakhir. 
+
+Versi 
+
+Timestamp 
+
+Halaman 
+
+Perubahan 
+
+1 
+
+20260415-2345 
+
+Semua 
+
+Rilis Pertama 
+
+📑 Daftar Isi 
+
+⌛Riwayat
+ Versi        2 
+
+📑 Daftar
+ Isi        2 
+
+🔎 Informasi
+ Umum        3 
+
+🏁 Ekspektasi Hasil
+ Pembelajaran        3 
+
+💡 Petunjuk
+ Pengerjaan        4 
+
+📖
+ Deskripsi        7 
+
+DAFTAR
+ FITUR        7 
+
+DESKRIPSI
+ TABEL        8 
+
+DATA
+ DUMMY        14 
+
+SKENARIO & DESKRIPSI
+ FITUR        15 
+
+🛠️
+ Spesifikasi        56 
+
+🗄 Informasi Terkait Pengumpulan
+ Berkas        56 
+
+⚖️
+ Peraturan        57 
+
+Keterlambatan        57 
+
+Plagiarisme        57 
+
+Tugas Kelompok – TK03 
+
+Aeromiles 
+
+Gambar 1.1: Ilustrasi AeroMiles hasil keluaran dari
+ ChatGPT 
+
+🔎 Informasi Umum 
+
+Tipe Tugas        
+                 :
+ Kelompok 
+
+Batas Waktu
+ Pengumpulan        :
+ Kamis, 30 April 2026 Jam 23.59 Waktu SCeLE 
+
+Format Penamaan
+ Berkas        :
+ TK03_SQL_[Kelas]_[Kode_Kelompok].pdf 
+
+TK03_FRONTEND_[Kelas]_[Kode_Kelompok].pdf 
+
+TK03_DUMP_SQL_[Kelas]_[Kode_Kelompok].sql 
+
+List Pembagian Kelompok           : Klik di Sini 
+
+Template Jawaban (SQL)
+         : Klik di Sini 
+
+Template Jawaban (FE)
+         : Klik di Sini 
+
+Tautan Skema Relational        
+         : Klik di Sini 
+
+*skema relasional yang digunakan sebagai kunci jawaban TK02,
+ pada TK03 ini terdapat penyesuaian dan penambahan atribut pada
+ beberapa entitas. 
+
+🏁 Ekspektasi Hasil Pembelajaran 
+
+CPL 
+
+Mampu menerapkan penalaran yang kritis, sistematis, dan
+ logis dalam 
+
+menganalisa dan memformulasikan masalah serta mengikuti
+ kaidah ilmiah 
+
+untuk memperoleh solusinya secara komputasional 
+
+CPMK 
+
+Mahasiswa dapat merancang basis data secara benar dan
+ sesuai dengan kebutuhan data pengguna. 
+
+Sub-CPMK 
+
+Mahasiswa dapat memodelkan kebutuhan data menggunakan (enhanced) entity relationship diagram . 
+
+Mahasiswa dapat mengevaluasi hasil rancangan basis
+ data. 
+
+💡 Petunjuk Pengerjaan 
+
+Pada TK03 ini, kalian diminta untuk membuat sebuah code SQL
+ dari tabel yang dijelaskan pada section “Deskripsi Tabel” dan
+ membuat UI ( frontend ) dari kriteria yang dijelaskan pada section Skenario & Deskripsi Fitur . 
+
+Untuk TK03 ditugaskan untuk membuat minimal frontend saja. Implementasi backend akan ditugaskan pada
+ TK04. 
+
+Implementasikan basis data dari studi kasus ini berdasarkan
+ skema relasional, deskripsi tabel, dan jumlah minimal data
+ pada setiap tabel yang telah ditentukan. 
+
+Tampilan pada form atau tabel frontend dapat dikreasikan oleh masing-masing kelompok, asalkan
+ memiliki komponen yang dijelaskan pada skenario dan deskripsi
+ fitur. 
+
+Tugas yang dikumpulkan terdiri dari: 
+
+Dokumen SQL dengan format file PDF : 
+
+Screenshot struktur data dari setiap tabelnya (dengan perintah
+ ‘ \d [nama_tabel] ’). 
+
+Screenshot tampilan state dari setiap tabel yang telah diisi
+ dengan data yang dibutuhkan, dengan perintah ‘ SELECT * FROM [nama_tabel] ’, pastikan terlihat jumlah data di screenshot tersebut. 
+
+Pastikan screenshot kelompok Anda terlihat username akun dari salah satu mahasiswa kelompok Anda. Serta, susun
+ screenshot tersebut secara rapi sesuai dengan kerangka laporan yang telah diberikan. 
+
+File pdf dikumpulkan dengan format penamaan: 
+
+TK03_SQL_[Kelas]_[Kode_Kelompok].pdf 
+
+Dokumen Screenshot frontend dengan format file PDF : 
+
+PDF berisi tangkapan layar halaman fitur untuk TK03, pastikan
+ tangkapan layar mencakup navbar yang sesuai dengan role-nya. Selain itu cantumkan URL yang digunakan pada halaman page tersebut. Untuk TK3 ini jika
+ terdapat data pada halaman tersebut silakan isi dengan data dummy . 
+
+Cantumkan link repository GitHub/GitLab pada halaman pertama
+ file. Pastikan sudah mengundang Asdos masing-masing kelompok
+ pada repository tersebut. Username GitHub/GitLab Asdos akan
+ diumumkan kemudian. 
+
+Tugas Kelompok 3 dikumpulkan hanya dalam bentuk softcopy yang
+ dikumpulkan di
+ SCeLE.        Dengan        
+ format        penamaan
+ File: 
+
+TK03_FRONTEND_[Kelas]_[Kode_Kelompok].pdf 
+
+File Dump SQL dari setiap tabel yang dijadikan satu file untuk
+ seluruh tabel (lengkap dengan create dan insert tabel)
+ dengan        format        penamaan
+ file: 
+
+TK03_DUMP_SQL_[Kelas]_[Kode_Kelompok].sql 
+
+Tugas Kelompok 3 dikumpulkan hanya dalam bentuk softcopy
+ berformat yang sesuai yang telah disebutkan diatas. Tidak perlu di ZIP . 
+
+1 Kelompok cukup yang mengumpulkan hanya anggota saja  di
+ SCeLE! 
+
+Buatlah branch khusus untuk penilaian TK3 ini dengan nama
+ branch tk03 . Penalti akan dikenakan jika tidak membuat branch ini dan commit-push lebih dari jam deadline dengan mengacu keterlambatan tugas sesuai pada aturan di BRP . 
+
+Tuliskan Kode Kelompok dan anggota-anggota dari kelompoknya yang terdiri dari Nama dan NPM di halaman pertama lembar berkas jawaban anda.
+ Kelalaian menuliskan informasi ini (lupa atau salah tulis)
+ akan diberi penalti 5 poin . 
+
+File yang dikumpulkan ke SCeLE berupa  lembar jawaban
+ dalam format yang ditentukan. Apabila terdapat kesalahan
+ format (file/penamaan) yang dikumpulkan akan diberi penalti 5 poin . 
+
+Tulis/ketik ulang pernyataan Kode Etik Akademik di bawah ini pada bagian terakhir Laporan Tugas
+ Kelompok Anda. Berkas Tugas Kelompok tanpa pernyataan seperti
+ di bawah ini tidak akan dinilai . *khusus untuk format sql (.sql) tidak perlu menulis kode etik. 
+
+Kode Etik Akademik: 
+
+Kami menyatakan bahwa Tugas Kelompok ini kami kerjakan
+ dengan usaha kami sendiri. Kami tidak menyalin jawaban
+ dari sumber manapun. Kami bertanggung jawab menjaga agar
+ jawaban Tugas Kelompok kami tidak disalin oleh peserta
+ kelompok lainnya. 
+
+Proporsi pengerjaan Tugas Kelompok adalah sbb: 
+
+No 
+
+NPM 
+
+Nama Anggota 
+
+Deskripsi Tugas 
+
+Kontribusi (0-5) 
+
+1 
+
+2 
+
+3 
+
+4 
+
+1 
+
+ex: 1234567890 
+
+ex: Ani 
+
+ex: Membuat entitas A, B, C dan atributnya (5
+ entity) 
+
+x 
+
+4 
+
+4 
+
+5 
+
+2 
+
+ex: 1234567891 
+
+ex: Budi 
+
+ex: Membuat entitas A, B, C dan atributnya (5
+ entity) 
+
+4 
+
+x 
+
+5 
+
+4 
+
+3 
+
+ex: 1234567892 
+
+ex: Charles 
+
+ex: Membuat entitas A, B, C dan atributnya (5
+ entity) 
+
+5 
+
+5 
+
+x 
+
+5 
+
+4 
+
+ex: 1234567893 
+
+ex: Doni 
+
+ex: Membuat entitas A, B, C dan atributnya (5
+ entity) 
+
+4 
+
+5 
+
+4 
+
+x 
+
+* Cara penilaian kontribusi adalah sebagai berikut: 
+
+Penilaian berkisar antara nilai 0 hingga 5. Nilai 0 jika
+ anggota kelompok tersebut tidak berpartisipasi sama
+ sekali. 
+
+Angka 1-4 yang berwarna biru menunjukkan nomor tiap anggota (mengacu pada kolom No).
+ Jika jumlah anggota kelompok adalah 3 orang, maka pada kolom Kontribusi 4 tidak perlu diisi. 
+
+Penilaian diberikan untuk anggota kelompok lainnya. Misal
+ mahasiswa nomor 1 memberikan nilai untuk mahasiswa nomor 2, 3,
+ dan 4 dengan meletakkan penilaiannya di kolom 1 . Begitupun untuk mahasiswa lainnya, harus meletakkan
+ penilaiannya di kolom yang sesuai dengan nomornya
+ masing-masing. 
+
+Jika ada keterangan soal yang dianggap ambigu atau belum
+ dijelaskan, dipersilahkan mahasiswa menuliskan asumsi dan implikasinya di dalam file tugas yang dikumpulkan namun masih tetap
+ sesuai dengan konteks studi kasus. 
+
+Jika ada pertanyaan, silakan bertanya melalui forum Discord atau melalui ticket Discord jika pertanyaan bersifat pribadi. Harap tidak mengirim pesan langsung kepada asisten melalui direct message . 
+
+Penalti keterlambatan dijelaskan pada dokumen soal mengacu
+ pada aturan di BRP. 
+
+📖 Deskripsi 
+
+DAFTAR FITUR 
+
+Satu kelompok warna dikerjakan oleh satu orang 
+
+Kelompok fitur warna putih merupakan fitur wajib
+ kelompok 
+
+Apabila kelompok beranggotakan 5 orang , maka fitur nomor 2–5 menjadi fitur perseorangan yang wajib dikerjakan oleh 1 orang, sehingga fitur wajib hanya nomor 1 
+
+CRUD = (C) Create, (R) Read, (U) Update, (D) Delete 
+
+No 
+
+Nama Fitur 
+
+Role 
+
+Keterangan 
+
+1 
+
+Navbar 
+
+Semua 
+
+FITUR WAJIB 
+
+2 
+
+R - Login & Logout 
+
+Semua 
+
+3 
+
+CR - Registrasi 
+
+Semua 
+
+4 
+
+R - Dashboard 
+
+Semua 
+
+5 
+
+RU - Pengaturan Profil 
+
+Semual 
+
+6 
+
+CRUD - Manajemen Data Member 
+
+Staf 
+
+Dikerjakan oleh 1 Orang 
+
+7 
+
+CRUD - Manajemen Identitas Member 
+
+Member 
+
+8 
+
+CRUD - Manajemen Claim Missing Miles Member 
+
+Member 
+
+Dikerjakan oleh 1 Orang 
+
+9 
+
+RU - Manajemen Claim Missing Miles Staf 
+
+Staf 
+
+10 
+
+CR - Transfer Miles antar Member 
+
+Member 
+
+11 
+
+CR - Redeem Hadiah 
+
+Member 
+
+Dikerjakan oleh 1 Orang 
+
+12 
+
+CR - Pembelian Award Miles Package 
+
+Member 
+
+13 
+
+R - Informasi Tier & Keuntungan 
+
+Member 
+
+14 
+
+RD - Laporan & Riwayat Transaksi Miles 
+
+Staf 
+
+15 
+
+CRUD - Manajemen Hadiah & Penyedia 
+
+Staf 
+
+Dikerjakan oleh 1 Orang 
+
+16 
+
+CRUD - Manajemen Mitra 
+
+Staf 
+
+DESKRIPSI TABEL 
+
+1. PENGGUNA 
+
+Nama Atribut 
+
+Tipe Data 
+
+Keterangan 
+
+email 
+
+varchar(100) 
+
+PK 
+
+password 
+
+varchar(255) 
+
+Not null, wajib di hash 
+
+salutation 
+
+varchar(10) 
+
+Not null (Mr./Mrs./Ms./Dr.) 
+
+first_mid_name 
+
+varchar(100) 
+
+Not null 
+
+last_name 
+
+varchar(100) 
+
+Not null 
+
+country_code 
+
+varchar(5) 
+
+Not null (kode telepon negara) 
+
+mobile_number 
+
+varchar(20) 
+
+Not null 
+
+tanggal_lahir 
+
+date 
+
+Not null 
+
+kewarganegaraan 
+
+varchar(50) 
+
+Not null 
+
+2. TIER 
+
+Nama Atribut 
+
+Tipe Data 
+
+Keterangan 
+
+id_tier 
+
+varchar(10) 
+
+PK 
+
+nama 
+
+varchar(50) 
+
+Not null 
+
+minimal_frekuensi_terbang 
+
+int 
+
+Not null 
+
+minimal_tier_miles 
+
+int 
+
+Not null 
+
+3. MEMBER 
+
+Nama Atribut 
+
+Tipe Data 
+
+Keterangan 
+
+email 
+
+varchar(100) 
+
+PK, FK ke PENGGUNA.email 
+
+nomor_member 
+
+varchar(20) 
+
+Not null, unique, auto-increment dengan format M[XXXX]
+ (contoh: M0001, M0002, dll) 
+
+tanggal_bergabung 
+
+date 
+
+Not null 
+
+id_tier 
+
+varchar(10) 
+
+FK ke TIER.id_tier, not null 
+
+award_miles 
+
+int 
+
+Derived attribute (dihitung dari transaksi) 
+
+total_miles 
+
+int 
+
+Derived attribute (dihitung dari transaksi) 
+
+4. PENYEDIA 
+
+Nama Atribut 
+
+Tipe Data 
+
+Keterangan 
+
+id 
+
+int 
+
+PK, auto-increment 
+
+5. MASKAPAI 
+
+Nama Atribut 
+
+Tipe Data 
+
+Keterangan 
+
+kode_maskapai 
+
+varchar(10) 
+
+PK 
+
+nama_maskapai 
+
+varchar(100) 
+
+Not null 
+
+id_penyedia 
+
+int 
+
+FK ke PENYEDIA.id , not null 
+
+6. STAF 
+
+Nama Atribut 
+
+Tipe Data 
+
+Keterangan 
+
+email 
+
+varchar(100) 
+
+PK, FK ke PENGGUNA.email 
+
+id_staf 
+
+varchar(20) 
+
+not null, unique, auto-increment dengan format S[XXXX]
+ (contoh: S0001, S0002, dll) 
+
+kode_maskapai 
+
+varchar(10) 
+
+FK ke MASKAPAI.kode_maskapai, not null 
+
+7. MITRA 
+
+Nama Atribut 
+
+Tipe Data 
+
+Keterangan 
+
+email_mitra 
+
+varchar(100) 
+
+PK 
+
+id_penyedia 
+
+int 
+
+FK ke PENYEDIA.id (ON DELETE CASCADE) , not null, unique 
+
+nama_mitra 
+
+varchar(100) 
+
+Not null 
+
+tanggal_kerja_sama 
+
+date 
+
+Not null 
+
+8. IDENTITAS 
+
+Nama Atribut 
+
+Tipe Data 
+
+Keterangan 
+
+nomor 
+
+varchar(50) 
+
+PK 
+
+email_member 
+
+varchar(100) 
+
+FK ke MEMBER.email (ON DELETE CASCADE), not null 
+
+tanggal_habis 
+
+date 
+
+Not null 
+
+tanggal_terbit 
+
+date 
+
+Not null 
+
+negara_penerbit 
+
+varchar(50) 
+
+Not null 
+
+jenis 
+
+varchar(30) 
+
+Not null (Paspor/KTP/SIM) 
+
+9. AWARD_MILES_PACKAGE 
+
+Nama Atribut 
+
+Tipe Data 
+
+Keterangan 
+
+id 
+
+varchar(20) 
+
+PK, auto-increment dengan format AMP-[XXX] (contoh:
+ AMP-001, AMP 002, dll.) 
+
+harga_paket 
+
+decimal(15,2) 
+
+Not null 
+
+jumlah_award_miles 
+
+int 
+
+Not null 
+
+10. MEMBER_AWARD_MILES_PACKAGE 
+
+Nama Atribut 
+
+Tipe Data 
+
+Keterangan 
+
+id_award_miles_package 
+
+varchar(20) 
+
+PK, FK ke AWARD_MILES_PACKAGE.id, not null 
+
+email_member 
+
+varchar(100) 
+
+PK, FK ke MEMBER.email (ON DELETE CASCADE), not
+ null 
+
+timestamp 
+
+timestamp 
+
+PK, not null 
+
+11. BANDARA 
+
+Nama Atribut 
+
+Tipe Data 
+
+Keterangan 
+
+iata_code 
+
+char(3) 
+
+PK 
+
+nama 
+
+varchar(100) 
+
+Not null 
+
+kota 
+
+varchar(100) 
+
+Not null 
+
+negara 
+
+varchar(100) 
+
+Not null 
+
+12. CLAIM_MISSING_MILES 
+
+Nama Atribut 
+
+Tipe Data 
+
+Keterangan 
+
+id 
+
+int 
+
+PK, auto-increment 
+
+email_member 
+
+varchar(100) 
+
+FK ke MEMBER.email (ON DELETE CASCADE), not null 
+
+email_staf 
+
+varchar(100) 
+
+FK ke STAF.email, null ketika belum ditangani 
+
+maskapai 
+
+varchar(10) 
+
+FK ke MASKAPAI.kode_maskapai, not null 
+
+bandara_asal 
+
+varchar(3) 
+
+FK ke BANDARA.iata_code, not null 
+
+bandara_tujuan 
+
+varchar(3) 
+
+FK ke BANDARA.iata_code, not null 
+
+tanggal_penerbangan 
+
+date 
+
+Not null 
+
+flight_number 
+
+varchar(10) 
+
+Not null 
+
+nomor_tiket 
+
+varchar(20) 
+
+Not null 
+
+kelas_kabin 
+
+varchar(20) 
+
+Not null (Economy/Business/First) 
+
+pnr 
+
+varchar(10) 
+
+Not null 
+
+status_penerimaan 
+
+varchar(20) 
+
+Not null (Menunggu/Disetujui/Ditolak) 
+
+timestamp 
+
+timestamp 
+
+Not null (waktu pengajuan) 
+
+Keterangan: 
+
+Terdapat aturan untuk mencegah pengajuan klaim
+ duplikat pada penerbangan yang sama, berdasarkan
+ kombinasi email_member, flight_number,
+ tanggal_penerbangan, dan nomor_tiket. 
+
+Status klaim saat pengajuan adalah 'Menunggu' 
+
+13. TRANSFER 
+
+Nama Atribut 
+
+Tipe Data 
+
+Keterangan 
+
+email_member_1 
+
+varchar(100) 
+
+PK, FK ke MEMBER.email (pengirim, ON DELETE CASCADE),
+ not null 
+
+email_member_2 
+
+varchar(100) 
+
+PK, FK ke MEMBER.email (penerima, ON DELETE CASCADE),
+ not null 
+
+timestamp 
+
+timestamp 
+
+PK 
+
+jumlah 
+
+int 
+
+Not null (jumlah miles yang diterima) 
+
+catatan 
+
+varchar(255) 
+
+Keterangan: Member tidak dapat mentransfer miles ke dirinya
+ sendiri. 
+
+14. HADIAH 
+
+Nama Atribut 
+
+Tipe Data 
+
+Keterangan 
+
+kode_hadiah 
+
+varchar(20) 
+
+PK, auto increment dengan format RWD-[XXX] (Contoh:
+ RWD-001, RWD-002) 
+
+nama 
+
+varchar(100) 
+
+Not null 
+
+miles 
+
+int 
+
+Not null (harga dalam miles) 
+
+deskripsi 
+
+text 
+
+valid_start_date 
+
+date 
+
+Not null 
+
+program_end 
+
+date 
+
+Not null 
+
+id_penyedia 
+
+int 
+
+FK ke PENYEDIA.id (ON DELETE CASCADE) , not null 
+
+15. REDEEM 
+
+Nama Atribut 
+
+Tipe Data 
+
+Keterangan 
+
+email_member 
+
+varchar(100) 
+
+PK, FK ke MEMBER.email (ON DELETE CASCADE), not
+ null 
+
+kode_hadiah 
+
+varchar(20) 
+
+PK, FK ke HADIAH.kode_hadiah, not null 
+
+timestamp 
+
+timestamp 
+
+PK, not null 
+
+DATA DUMMY 
+
+Jumlah Minimal Data Dummy Pada Tabel 
+
+No 
+
+Tabel 
+
+Jumlah 
+
+No 
+
+Tabel 
+
+Jumlah 
+
+1 
+
+PENGGUNA 
+
+60 
+
+9 
+
+AWARD_MILES_PACKAGE 
+
+5 
+
+2 
+
+TIER 
+
+4 
+
+10 
+
+MEMBER_AWARD_MILES_PACKAGE 
+
+20 
+
+3 
+
+MEMBER 
+
+50 
+
+11 
+
+BANDARA 
+
+15 
+
+4 
+
+PENYEDIA 
+
+8 
+
+12 
+
+CLAIM_MISSING_MILES 
+
+20 
+
+5 
+
+MASKAPAI 
+
+5 
+
+13 
+
+TRANSFER 
+
+15 
+
+6 
+
+STAF 
+
+10 
+
+14 
+
+HADIAH 
+
+10 
+
+7 
+
+MITRA 
+
+5 
+
+15 
+
+REDEEM 
+
+20 
+
+8 
+
+IDENTITAS 
+
+30 
+
+SKENARIO & DESKRIPSI FITUR 
+
+Mahasiswa
+ dipersilakan untuk berkreasi pada frontend , gambar yang dilampirkan hanya contoh implementasi. Sesuaikan
+ implementasi dengan deskripsi yang ada. 
+
+FITUR UMUM (CRU) 
+
+Fitur ini berkaitan dengan pengelolaan akun pengguna,
+ autentikasi, dan peran mereka dalam sistem Aero Miles. Terdapat
+ dua peran utama: Member (pengguna yang mengikuti program
+ loyalitas penerbangan) dan Staf (pegawai maskapai yang mengelola
+ sistem). 
+
+NAVBAR 
+
+Navbar digunakan untuk pengguna jika ingin mengganti fitur yang
+ tersedia. 
+
+Spesifikasi Navbar Guest (Belum Login) 
+
+Login 
+
+Registrasi 
+
+Spesifikasi Navbar Member (Sudah Login) 
+
+Dashboard 
+
+Identitas Saya 
+
+Klaim Miles 
+
+Transfer Miles 
+
+Redeem Hadiah 
+
+Beli Package 
+
+Info Tier 
+
+Pengaturan Profil 
+
+Logout 
+
+Contoh Implementasi: 
+
+Spesifikasi
+ Navbar Staf (Sudah Login) 
+
+Dashboard 
+
+Kelola Member 
+
+Kelola Klaim 
+
+Kelola Hadiah & Penyedia 
+
+Kelola Mitra 
+
+Laporan Transaksi 
+
+Pengaturan Profil 
+
+Logout 
+
+Contoh Implementasi: 
+
+CRU – REGISTRASI (SEMUA) 
+
+Sistem menampilkan halaman pilihan Login atau Register. Jika
+ pengguna memilih Register, tersedia pilihan dua role: Member
+ atau Staf. 
+
+Skenario Registrasi Member: 
+
+P engguna mengisi form: Email, Password, Konfirmasi Password,
+ Salutation, Nama Depan-Tengah, Nama Belakang, Country Code,
+ Nomor HP, Tanggal Lahir, Kewarganegaraan . 
+
+Setelah mendaftar, akun Member akan otomatis masuk ke tier
+ terendah (misal: Blue) dan mendapatkan nomor member yang
+ di- generate sistem. 
+
+C ontoh Implementasi: 
+
+Skenario Registrasi Staf: 
+
+P engguna mengisi form: Email, Password, Konfirmasi Password,
+ Salutation, Nama Depan-Tengah, Nama Belakang, Country Code,
+ Nomor HP, Tanggal Lahir, Kewarganegaraan, Kode Maskapai
+ ( dropdown ). 
+
+ID Staf di-generate otomatis oleh sistem. 
+
+C ontoh Implementasi: 
+
+Validasi : 
+
+J ika ada field yang kosong atau tidak valid, sistem menampilkan pesan error . 
+
+Jika email sudah terdaftar, sistem menampilkan pesan error
+ duplikasi. 
+
+Password dan konfirmasi password harus sama. 
+
+Jika semua input valid, sistem membuat akun baru dan
+ mengarahkan pengguna ke halaman login. 
+
+C – LOGIN DAN LOGOUT (SEMUA) 
+
+Fitur login dan logout dapat dilakukan oleh semua pengguna yang
+ telah terdaftar pada sistem. 
+
+Skenario Login: 
+
+Sistem menampilkan halaman Login dan Register. 
+
+Pengguna memasukkan email dan password lalu klik tombol Log
+ In. 
+
+Jika email atau password salah, tampilkan pesan error. 
+
+Jika benar, session pengguna disimpan dan pengguna di- redirect ke Dashboard sesuai perannya. 
+
+C ontoh Implementasi: 
+
+Skenario Logout: 
+
+Ketika pengguna telah berhasil masuk ke sistem dan ingin
+ keluar dari sistem, maka pengguna akan menekan tombol 'Logout'
+ yang terdapat pada Navbar. 
+
+Dengan demikian, session pengguna akan berakhir dan akan
+ kembali ke halaman "Login dan Register". 
+
+R – DASHBOARD (SEMUA) 
+
+Dashboard menampilkan ringkasan informasi pribadi dan aktivitas
+ terkait peran pengguna. 
+
+Dashboard Umum (semua role): 
+
+Nama lengkap (Salutation + First_Mid_Name + Last_Name) 
+
+Email 
+
+Country Code + Nomor HP 
+
+Kewarganegaraan 
+
+Tanggal lahir 
+
+Dashboard untuk Member (tambahan): 
+
+Untuk Member, dashboard juga menampilkan: 
+
+Nomor Member 
+
+Tier Member saat ini 
+
+Total Miles dan Award Miles saat ini (derived) 
+
+Tanggal bergabung 
+
+Riwayat 5 transaksi miles terbaru 
+
+C ontoh Implementasi: 
+
+Dashboard untuk Staf (tambahan): 
+
+Untuk Staf, dashboard juga menampilkan: 
+
+I D Staf 
+
+Maskapai tempat bertugas 
+
+Jumlah klaim missing miles yang perlu ditangani oleh seluruh
+ Staf (status Menunggu) 
+
+Ringkasan klaim yang disetujui dan ditolak untuk Staf yang
+ sedang login 
+
+C ontoh Implementasi: 
+
+RU – PENGATURAN PROFIL (SEMUA) 
+
+Fitur ini digunakan oleh pengguna untuk melihat dan memperbarui
+ profil mereka 
+
+Skenario Update Profil: 
+
+Pengguna mengakses menu Pengaturan Profil dari Navbar. 
+
+Sistem menampilkan form berisi data profil yang sudah
+ terisi. 
+
+Pengguna dapat mengubah: Salutation, First_Mid_Name,
+ Last_Name, Country Code, Nomor HP, Kewarganegaraan, Tanggal
+ Lahir. 
+
+Email tidak dapat diubah. 
+
+Khusus Member: Nomor Member dan Tanggal Bergabung tidak dapat
+ diubah. 
+
+Khusus Staf: ID Staf tidak dapat diubah. Kode Maskapai dapat
+ diperbarui. 
+
+Setelah menekan tombol Simpan, sistem memvalidasi dan
+ menyimpan perubahan jika valid. 
+
+C ontoh Implementasi: 
+
+Skenario Ubah Password: 
+
+Pengguna menekan tombol Ubah Password pada halaman Pengaturan
+ Profil. 
+
+Sistem menampilkan form: Password Lama, Password Baru,
+ Konfirmasi Password Baru. 
+
+Sistem memvalidasi password lama sebelum menyimpan password
+ baru. 
+
+C ontoh Implementasi: 
