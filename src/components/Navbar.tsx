@@ -3,13 +3,11 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
-
 import { useAuth } from '@/components/AuthProvider'
 
 function NavLink({ href, label }: { href: string; label: string }) {
   const pathname = usePathname()
   const active = pathname === href
-
   return (
     <Link
       href={href}
@@ -23,6 +21,27 @@ function NavLink({ href, label }: { href: string; label: string }) {
     </Link>
   )
 }
+
+const MEMBER_LINKS = [
+  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/identitas', label: 'Identitas Saya' },
+  { href: '/klaim-miles', label: 'Klaim Miles' },
+  { href: '/transfer-miles', label: 'Transfer Miles' },
+  { href: '/redeem', label: 'Redeem Hadiah' },
+  { href: '/beli-package', label: 'Beli Package' },
+  { href: '/info-tier', label: 'Info Tier' },
+  { href: '/profile', label: 'Pengaturan Profil' },
+]
+
+const STAF_LINKS = [
+  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/kelola-member', label: 'Kelola Member' },
+  { href: '/kelola-klaim', label: 'Kelola Klaim' },
+  { href: '/kelola-hadiah', label: 'Kelola Hadiah & Penyedia' },
+  { href: '/kelola-mitra', label: 'Kelola Mitra' },
+  { href: '/laporan', label: 'Laporan Transaksi' },
+  { href: '/profile', label: 'Pengaturan Profil' },
+]
 
 export function Navbar() {
   const { user, isHydrated } = useAuth()
@@ -90,50 +109,40 @@ export function Navbar() {
 
   const firstName = displayName ? String(displayName).split(' ')[0] : null
 
+  const links = user.role === 'staf' ? STAF_LINKS : MEMBER_LINKS
+  const roleLabel = user.role === 'staf' ? 'Staf' : 'Member'
+
   return (
     <header className="sticky top-0 z-10 border-b border-white/15 bg-secondary/80 backdrop-blur">
-      <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-base font-semibold tracking-wide text-white">
-            AEROMILES
+      <div className="mx-auto flex max-w-screen-xl items-center justify-between px-4 py-3">
+        <Link href="/dashboard" className="text-base font-bold tracking-widest text-white">
+          ✈ AeroMiles
+        </Link>
+
+        <nav className="hidden items-center gap-0.5 lg:flex">
+          {links.map(l => (
+            <NavLink key={l.href} href={l.href} label={l.label} />
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-3">
+          <span className="hidden text-xs text-white/60 sm:block">
+            {user.name} · <span className="text-white/80">{roleLabel}</span>
+          </span>
+          <Link
+            href="/logout"
+            className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white/90 hover:bg-white/10"
+          >
+            Logout
           </Link>
         </div>
+      </div>
 
-        <div className="hidden md:flex md:items-center md:gap-2">
-          <nav className="flex items-center gap-1">
-            {linksToRender.map((l) => (
-              <NavLink key={l.href} href={l.href} label={l.label} />
-            ))}
-
-            {role ? (
-              <button onClick={handleLogout} className="rounded-lg px-3 py-2 text-sm font-semibold text-primary hover:bg-white/10">
-                Logout
-              </button>
-            ) : null}
-          </nav>
-
-          {role ? (
-            <div className="ml-3 rounded-full bg-white/8 px-3 py-1 text-sm font-medium text-white">
-              Hai{firstName ? `, ${firstName}` : ''}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="md:hidden flex items-center">
-          <button
-            aria-label="Toggle menu"
-            onClick={() => setOpen((s) => !s)}
-            className="inline-flex items-center justify-center rounded-md p-2 text-white hover:bg-white/10"
-          >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              {open ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
-        </div>
+      {/* Mobile nav */}
+      <div className="flex gap-1 overflow-x-auto px-4 pb-2 lg:hidden">
+        {links.map(l => (
+          <NavLink key={l.href} href={l.href} label={l.label} />
+        ))}
       </div>
 
       {open ? (
