@@ -86,11 +86,6 @@ export default function Page() {
     return 'Terima'
   }
 
-  const getType = (t: TransferRecord) => {
-    if (t.email_member_1 === user?.email) return 'Kirim'
-    return 'Terima'
-  }
-
   if (!isHydrated) {
     return (
       <main className="flex min-h-[calc(100vh-56px)] items-center justify-center p-6">
