@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import pool from '@/lib/db'
+import rawPool from '@/lib/db'
+// @ts-ignore
+const pool: any = rawPool
 
 // READ: Ambil semua klaim member
 export async function GET(req: Request) {

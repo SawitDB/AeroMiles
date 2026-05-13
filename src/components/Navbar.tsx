@@ -88,9 +88,10 @@ export function Navbar() {
     }
   }, [])
 
-  useEffect(() => {
-    setOpen(false)
-  }, [usePathname()])
+ const pathname = usePathname()
+    useEffect(() => {
+      setOpen(false)
+    }, [pathname])
 
   function handleLogout() {
     if (typeof window !== 'undefined') {
