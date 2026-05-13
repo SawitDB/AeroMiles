@@ -3,7 +3,6 @@
 import { FormEvent, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { loadMembers } from '@/lib/auth/storage'
 
 const HARD_CODED_USERS = [
   {
