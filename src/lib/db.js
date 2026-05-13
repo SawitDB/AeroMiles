@@ -1,12 +1,35 @@
 // Contoh menggunakan PostgreSQL (library 'pg')
-const { Pool } = require('pg');
+import { Pool } from 'pg';
 
-const pool = new Pool({
-  user: 'postgres',          // Ganti dengan username database Anda
-  host: 'localhost',
-  database: 'postgres',     // Nama database yang dibuat di langkah 1
-  password: 'Sharomitha', // Ganti dengan password database Anda
-  port: 5432,
-});
+const dbConfig = {
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  database: process.env.DB_NAME
+};
 
-module.exports = pool;
+let pool;
+
+if (process.env.NODE_ENV === 'development') {
+  // Singleton pattern untuk local development
+  if (!global._pgPool) {
+    global._pgPool = new Pool({
+      ...dbConfig,
+      max: 20,
+    });
+  }
+  pool = global._pgPool;
+} else {
+  // Instance baru untuk production
+  pool = new Pool({
+    ...dbConfig,
+    max: 10,
+  });
+}
+
+export const query = async (text, params) => {
+  return await pool.query(text, params);
+};
+
+export default pool;
