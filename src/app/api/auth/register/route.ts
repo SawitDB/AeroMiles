@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { AUTH_COOKIE_NAME, hashPassword, signJwt } from '@/lib/auth/server'
+import { AUTH_COOKIE_NAME, signJwt } from '@/lib/auth/server'
 import { createRegisteredUser } from '@/services/authService'
 
 export async function POST(request: NextRequest) {
@@ -34,10 +34,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Semua field wajib diisi' }, { status: 400 })
     }
 
-    const passwordHash = await hashPassword(password)
     const user = await createRegisteredUser({
       email,
-      password: passwordHash,
+      password,
       salutation,
       firstMidName,
       lastName,

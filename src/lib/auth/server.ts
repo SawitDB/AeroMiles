@@ -1,4 +1,3 @@
-import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
 import type { UserRole } from '@/lib/auth/types'
@@ -17,15 +16,6 @@ function getJwtSecret() {
   }
 
   return secret
-}
-
-export async function hashPassword(password: string) {
-  return await bcrypt.hash(password, 10)
-}
-
-export async function verifyPassword(password: string, passwordHash: string) {
-  if (!passwordHash) return false
-  return await bcrypt.compare(password, passwordHash)
 }
 
 export function signJwt(payload: AuthTokenPayload, expiresIn: jwt.SignOptions['expiresIn'] = '1h') {

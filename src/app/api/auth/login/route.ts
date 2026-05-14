@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { AUTH_COOKIE_NAME, signJwt, verifyPassword } from '@/lib/auth/server'
-import { getAuthenticatedUserByEmail } from '@/services/authService'
+import { AUTH_COOKIE_NAME, signJwt } from '@/lib/auth/server'
+import { loginUser } from '@/services/authService'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,20 +13,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email dan password harus diisi' }, { status: 400 })
     }
 
-    const authUser = await getAuthenticatedUserByEmail(email)
-    if (!authUser) {
-      return NextResponse.json({ error: 'Email atau password salah' }, { status: 401 })
-    }
+    const user = await loginUser(email, password)
 
-    const isValid = await verifyPassword(password, authUser.password)
-    if (!isValid) {
-      return NextResponse.json({ error: 'Email atau password salah' }, { status: 401 })
-    }
-
-    const response = NextResponse.json({ data: authUser.user })
+    const response = NextResponse.json({ data: user })
     response.cookies.set({
       name: AUTH_COOKIE_NAME,
-      value: signJwt({ email: authUser.user.email, role: authUser.user.role }),
+      value: signJwt({ email: user.email, role: user.role }),
       httpOnly: true,
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',

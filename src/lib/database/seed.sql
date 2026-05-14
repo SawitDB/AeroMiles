@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 --- DDL AEROMILES
 
 -- DROP SCHEMA IF EXISTS AEROMILES CASCADE;
@@ -172,6 +174,72 @@ CREATE TABLE REDEEM (
     FOREIGN KEY (kode_hadiah) REFERENCES HADIAH(kode_hadiah)
 );
 
+-- TRIGGER: Cegah duplikasi email saat registrasi
+CREATE OR REPLACE FUNCTION check_duplicate_email()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM PENGGUNA
+        WHERE LOWER(email) = LOWER(NEW.email)
+    ) THEN
+        RAISE EXCEPTION 'ERROR: Email "%" sudah terdaftar, silakan gunakan email lain.', NEW.email;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_registrasi_email
+BEFORE INSERT ON PENGGUNA
+FOR EACH ROW
+EXECUTE FUNCTION check_duplicate_email();
+
+-- Fungsi untuk verifikasi login
+CREATE OR REPLACE FUNCTION verifikasi_login(p_email VARCHAR, p_password VARCHAR)
+RETURNS TABLE(
+    email VARCHAR,
+    salutation VARCHAR,
+    first_mid_name VARCHAR,
+    last_name VARCHAR,
+    country_code VARCHAR,
+    mobile_number VARCHAR,
+    tanggal_lahir DATE,
+    kewarganegaraan VARCHAR,
+    role VARCHAR,
+    nomor_member VARCHAR,
+    id_tier VARCHAR,
+    tanggal_bergabung DATE,
+    id_staf VARCHAR,
+    kode_maskapai VARCHAR
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        p.email::VARCHAR,
+        p.salutation::VARCHAR,
+        p.first_mid_name::VARCHAR,
+        p.last_name::VARCHAR,
+        p.country_code::VARCHAR,
+        p.mobile_number::VARCHAR,
+        p.tanggal_lahir::DATE,
+        p.kewarganegaraan::VARCHAR,
+        CASE WHEN m.email IS NOT NULL THEN 'member'::VARCHAR WHEN s.email IS NOT NULL THEN 'staf'::VARCHAR END,
+        m.nomor_member::VARCHAR,
+        m.id_tier::VARCHAR,
+        m.tanggal_bergabung::DATE,
+        s.id_staf::VARCHAR,
+        s.kode_maskapai::VARCHAR
+    FROM pengguna p
+    LEFT JOIN member m ON m.email = p.email
+    LEFT JOIN staf s ON s.email = p.email
+    WHERE LOWER(p.email) = LOWER(p_email)
+      AND p.password = crypt(p_password, p.password);
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Email atau password salah, silahkan coba lagi';
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
 --- DATA SEEDING AEROMILES
 
 -- 2. TIER (4 Data) - Dieksekusi duluan karena Member butuh Foreign Key ini
@@ -184,67 +252,67 @@ INSERT INTO TIER (id_tier, nama, minimal_frekuensi_terbang, minimal_tier_miles) 
 -- 1. PENGGUNA (60 Data) 
 -- 50 pertama untuk Member, 10 terakhir untuk Staf
 INSERT INTO PENGGUNA (email, password, salutation, first_mid_name, last_name, country_code, mobile_number, tanggal_lahir, kewarganegaraan) VALUES
-('andi.pratama@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Andi', 'Pratama', '+62', '8120000001', '1990-01-15', 'Indonesia'),
-('budi.santoso@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Budi', 'Santoso', '+62', '8120000002', '1988-03-22', 'Indonesia'),
-('citra.kirana@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Citra', 'Kirana', '+62', '8120000003', '1995-07-10', 'Indonesia'),
-('dewi.lestari@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Dewi', 'Lestari', '+62', '8120000004', '1992-11-05', 'Indonesia'),
-('eka.putra@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Eka', 'Putra', '+62', '8120000005', '1985-04-18', 'Indonesia'),
-('fajar.nugroho@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Fajar', 'Nugroho', '+62', '8120000006', '1991-09-30', 'Indonesia'),
-('gita.gutawa@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Gita', 'Gutawa', '+62', '8120000007', '1993-08-11', 'Indonesia'),
-('hadi.wijaya@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Hadi', 'Wijaya', '+62', '8120000008', '1987-12-25', 'Indonesia'),
-('intan.permata@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Intan', 'Permata', '+62', '8120000009', '1996-02-14', 'Indonesia'),
-('joko.widodo@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Joko', 'Widodo', '+62', '8120000010', '1961-06-21', 'Indonesia'),
-('kartika.sari@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Kartika', 'Sari', '+62', '8120000011', '1994-05-05', 'Indonesia'),
-('lukman.hakim@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Lukman', 'Hakim', '+62', '8120000012', '1989-10-12', 'Indonesia'),
-('maya.rumantir@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Maya', 'Rumantir', '+62', '8120000013', '1990-12-01', 'Indonesia'),
-('nur.hidayat@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Nur', 'Hidayat', '+62', '8120000014', '1986-07-07', 'Indonesia'),
-('oscar.lawalata@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Oscar', 'Lawalata', '+62', '8120000015', '1997-03-03', 'Indonesia'),
-('putri.marino@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Putri', 'Marino', '+62', '8120000016', '1993-08-04', 'Indonesia'),
-('qori.sandioriva@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Qori', 'Sandioriva', '+62', '8120000017', '1991-08-17', 'Indonesia'),
-('reza.rahadian@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Reza', 'Rahadian', '+62', '8120000018', '1987-03-05', 'Indonesia'),
-('sari.wangi@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Sari', 'Wangi', '+62', '8120000019', '1995-11-20', 'Indonesia'),
-('tari.lestar@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Tari', 'Lestari', '+62', '8120000020', '1992-04-10', 'Indonesia'),
-('umar.bakri@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Umar', 'Bakri', '+62', '8120000021', '1980-05-02', 'Indonesia'),
-('vina.panduwinata@email.com','$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Vina', 'Panduwinata', '+62', '8120000022', '1985-09-09', 'Indonesia'),
-('wira.saksana@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Wira', 'Saksana', '+62', '8120000023', '1998-01-20', 'Indonesia'),
-('xena.anggita@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Xena', 'Anggita', '+62', '8120000024', '1999-10-31', 'Indonesia'),
-('yudi.tomo@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Yudi', 'Tomo', '+62', '8120000025', '1994-06-15', 'Indonesia'),
-('zainudin.mz@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Zainudin', 'MZ', '+62', '8120000026', '1982-02-28', 'Indonesia'),
-('arif.hidayat@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Arif', 'Hidayat', '+62', '8120000027', '1990-11-11', 'Indonesia'),
-('bella.saphira@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Bella', 'Saphira', '+62', '8120000028', '1993-12-12', 'Indonesia'),
-('chandra.liow@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Chandra', 'Liow', '+62', '8120000029', '1995-01-01', 'Indonesia'),
-('dina.mariana@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Dina', 'Mariana', '+62', '8120000030', '1996-02-02', 'Indonesia'),
-('edi.santoso@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Edi', 'Santoso', '+62', '8120000031', '1988-03-03', 'Indonesia'),
-('fitri.tropica@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Fitri', 'Tropica', '+62', '8120000032', '1989-04-04', 'Indonesia'),
-('gilang.dirga@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Gilang', 'Dirga', '+62', '8120000033', '1991-05-05', 'Indonesia'),
-('hani.handayani@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Hani', 'Handayani', '+62', '8120000034', '1992-06-06', 'Indonesia'),
-('ilham.smash@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Ilham', 'Fauzi', '+62', '8120000035', '1994-07-07', 'Indonesia'),
-('jihan.fahira@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Jihan', 'Fahira', '+62', '8120000036', '1995-08-08', 'Indonesia'),
-('kevin.julio@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Kevin', 'Julio', '+62', '8120000037', '1996-09-09', 'Indonesia'),
-('laila.sari@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Laila', 'Sari', '+62', '8120000038', '1997-10-10', 'Indonesia'),
-('mamat.alkatiri@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Mamat', 'Alkatiri', '+62', '8120000039', '1998-11-11', 'Indonesia'),
-('nisa.sabyan@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Nisa', 'Sabyan', '+62', '8120000040', '1999-12-12', 'Indonesia'),
-('oki.setiana@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Oki', 'Setiana', '+62', '8120000041', '1985-01-15', 'Indonesia'),
-('rina.nose@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Rina', 'Nose', '+62', '8120000042', '1986-02-16', 'Indonesia'),
-('surya.saputra@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Surya', 'Saputra', '+62', '8120000043', '1987-03-17', 'Indonesia'),
-('tika.panggabean@email.com','$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa','Ms.', 'Tika', 'Panggabean', '+62','8120000044', '1988-04-18', 'Indonesia'),
-('ujang.bustomi@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Ujang', 'Bustomi', '+62', '8120000045', '1989-05-19', 'Indonesia'),
-('vivi.zubedi@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Vivi', 'Zubedi', '+62', '8120000046', '1990-06-20', 'Indonesia'),
-('wahyu.kadeo@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Wahyu', 'Kadeo', '+62', '8120000047', '1991-07-21', 'Indonesia'),
-('yuni.shara@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Yuni', 'Shara', '+62', '8120000048', '1992-08-22', 'Indonesia'),
-('zaki.dermawan@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Zaki', 'Dermawan', '+62', '8120000049', '1993-09-23', 'Indonesia'),
-('ari.lasso@email.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Ari', 'Lasso', '+62', '8120000050', '1994-10-24', 'Indonesia'),
+('andi.pratama@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Andi', 'Pratama', '+62', '8120000001', '1990-01-15', 'Indonesia'),
+('budi.santoso@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Budi', 'Santoso', '+62', '8120000002', '1988-03-22', 'Indonesia'),
+('citra.kirana@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Citra', 'Kirana', '+62', '8120000003', '1995-07-10', 'Indonesia'),
+('dewi.lestari@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Dewi', 'Lestari', '+62', '8120000004', '1992-11-05', 'Indonesia'),
+('eka.putra@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Eka', 'Putra', '+62', '8120000005', '1985-04-18', 'Indonesia'),
+('fajar.nugroho@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Fajar', 'Nugroho', '+62', '8120000006', '1991-09-30', 'Indonesia'),
+('gita.gutawa@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Gita', 'Gutawa', '+62', '8120000007', '1993-08-11', 'Indonesia'),
+('hadi.wijaya@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Hadi', 'Wijaya', '+62', '8120000008', '1987-12-25', 'Indonesia'),
+('intan.permata@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Intan', 'Permata', '+62', '8120000009', '1996-02-14', 'Indonesia'),
+('joko.widodo@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Joko', 'Widodo', '+62', '8120000010', '1961-06-21', 'Indonesia'),
+('kartika.sari@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Kartika', 'Sari', '+62', '8120000011', '1994-05-05', 'Indonesia'),
+('lukman.hakim@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Lukman', 'Hakim', '+62', '8120000012', '1989-10-12', 'Indonesia'),
+('maya.rumantir@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Maya', 'Rumantir', '+62', '8120000013', '1990-12-01', 'Indonesia'),
+('nur.hidayat@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Nur', 'Hidayat', '+62', '8120000014', '1986-07-07', 'Indonesia'),
+('oscar.lawalata@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Oscar', 'Lawalata', '+62', '8120000015', '1997-03-03', 'Indonesia'),
+('putri.marino@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Putri', 'Marino', '+62', '8120000016', '1993-08-04', 'Indonesia'),
+('qori.sandioriva@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Qori', 'Sandioriva', '+62', '8120000017', '1991-08-17', 'Indonesia'),
+('reza.rahadian@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Reza', 'Rahadian', '+62', '8120000018', '1987-03-05', 'Indonesia'),
+('sari.wangi@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Sari', 'Wangi', '+62', '8120000019', '1995-11-20', 'Indonesia'),
+('tari.lestar@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Tari', 'Lestari', '+62', '8120000020', '1992-04-10', 'Indonesia'),
+('umar.bakri@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Umar', 'Bakri', '+62', '8120000021', '1980-05-02', 'Indonesia'),
+('vina.panduwinata@email.com',crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Vina', 'Panduwinata', '+62', '8120000022', '1985-09-09', 'Indonesia'),
+('wira.saksana@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Wira', 'Saksana', '+62', '8120000023', '1998-01-20', 'Indonesia'),
+('xena.anggita@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Xena', 'Anggita', '+62', '8120000024', '1999-10-31', 'Indonesia'),
+('yudi.tomo@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Yudi', 'Tomo', '+62', '8120000025', '1994-06-15', 'Indonesia'),
+('zainudin.mz@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Zainudin', 'MZ', '+62', '8120000026', '1982-02-28', 'Indonesia'),
+('arif.hidayat@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Arif', 'Hidayat', '+62', '8120000027', '1990-11-11', 'Indonesia'),
+('bella.saphira@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Bella', 'Saphira', '+62', '8120000028', '1993-12-12', 'Indonesia'),
+('chandra.liow@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Chandra', 'Liow', '+62', '8120000029', '1995-01-01', 'Indonesia'),
+('dina.mariana@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Dina', 'Mariana', '+62', '8120000030', '1996-02-02', 'Indonesia'),
+('edi.santoso@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Edi', 'Santoso', '+62', '8120000031', '1988-03-03', 'Indonesia'),
+('fitri.tropica@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Fitri', 'Tropica', '+62', '8120000032', '1989-04-04', 'Indonesia'),
+('gilang.dirga@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Gilang', 'Dirga', '+62', '8120000033', '1991-05-05', 'Indonesia'),
+('hani.handayani@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Hani', 'Handayani', '+62', '8120000034', '1992-06-06', 'Indonesia'),
+('ilham.smash@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Ilham', 'Fauzi', '+62', '8120000035', '1994-07-07', 'Indonesia'),
+('jihan.fahira@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Jihan', 'Fahira', '+62', '8120000036', '1995-08-08', 'Indonesia'),
+('kevin.julio@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Kevin', 'Julio', '+62', '8120000037', '1996-09-09', 'Indonesia'),
+('laila.sari@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Laila', 'Sari', '+62', '8120000038', '1997-10-10', 'Indonesia'),
+('mamat.alkatiri@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Mamat', 'Alkatiri', '+62', '8120000039', '1998-11-11', 'Indonesia'),
+('nisa.sabyan@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Nisa', 'Sabyan', '+62', '8120000040', '1999-12-12', 'Indonesia'),
+('oki.setiana@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Oki', 'Setiana', '+62', '8120000041', '1985-01-15', 'Indonesia'),
+('rina.nose@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Rina', 'Nose', '+62', '8120000042', '1986-02-16', 'Indonesia'),
+('surya.saputra@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Surya', 'Saputra', '+62', '8120000043', '1987-03-17', 'Indonesia'),
+('tika.panggabean@email.com',crypt('nyawit', gen_salt('bf', 10)),'Ms.', 'Tika', 'Panggabean', '+62','8120000044', '1988-04-18', 'Indonesia'),
+('ujang.bustomi@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Ujang', 'Bustomi', '+62', '8120000045', '1989-05-19', 'Indonesia'),
+('vivi.zubedi@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Vivi', 'Zubedi', '+62', '8120000046', '1990-06-20', 'Indonesia'),
+('wahyu.kadeo@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Wahyu', 'Kadeo', '+62', '8120000047', '1991-07-21', 'Indonesia'),
+('yuni.shara@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Yuni', 'Shara', '+62', '8120000048', '1992-08-22', 'Indonesia'),
+('zaki.dermawan@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Zaki', 'Dermawan', '+62', '8120000049', '1993-09-23', 'Indonesia'),
+('ari.lasso@email.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Ari', 'Lasso', '+62', '8120000050', '1994-10-24', 'Indonesia'),
 -- 10 Staf Maskapai
-('agus.staf@garuda.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Agus', 'Firmansyah', '+62', '8110000001', '1985-01-10', 'Indonesia'),
-('bambang.staf@citilink.com','$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Bambang', 'Pamungkas', '+62', '8110000002', '1986-02-11', 'Indonesia'),
-('cici.staf@lion.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Cici', 'Paramida', '+62', '8110000003', '1987-03-12', 'Indonesia'),
-('dedi.staf@batik.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Dedi', 'Corbuzier', '+62', '8110000004', '1988-04-13', 'Indonesia'),
-('evi.staf@airasia.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Evi', 'Masamba', '+62', '8110000005', '1989-05-14', 'Indonesia'),
-('feri.staf@garuda.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Feri', 'Irawan', '+62', '8110000006', '1990-06-15', 'Indonesia'),
-('gina.staf@citilink.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Gina', 'Youbi', '+62', '8110000007', '1991-07-16', 'Indonesia'),
-('hendra.staf@lion.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Hendra', 'Setiawan', '+62', '8110000008', '1992-08-17', 'Indonesia'),
-('ira.staf@batik.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Ms.', 'Ira', 'Wibowo', '+62', '8110000009', '1993-09-18', 'Indonesia'),
-('jaka.staf@airasia.com', '$2b$10$FLuBmpwuFfbO6d.myNLQrude0DpOPbPAlCAsy1bK1B9eU/YTLVtRa', 'Mr.', 'Jaka', 'Tingkir', '+62', '8110000010', '1994-10-19', 'Indonesia');
+('agus.staf@garuda.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Agus', 'Firmansyah', '+62', '8110000001', '1985-01-10', 'Indonesia'),
+('bambang.staf@citilink.com',crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Bambang', 'Pamungkas', '+62', '8110000002', '1986-02-11', 'Indonesia'),
+('cici.staf@lion.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Cici', 'Paramida', '+62', '8110000003', '1987-03-12', 'Indonesia'),
+('dedi.staf@batik.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Dedi', 'Corbuzier', '+62', '8110000004', '1988-04-13', 'Indonesia'),
+('evi.staf@airasia.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Evi', 'Masamba', '+62', '8110000005', '1989-05-14', 'Indonesia'),
+('feri.staf@garuda.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Feri', 'Irawan', '+62', '8110000006', '1990-06-15', 'Indonesia'),
+('gina.staf@citilink.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Gina', 'Youbi', '+62', '8110000007', '1991-07-16', 'Indonesia'),
+('hendra.staf@lion.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Hendra', 'Setiawan', '+62', '8110000008', '1992-08-17', 'Indonesia'),
+('ira.staf@batik.com', crypt('nyawit', gen_salt('bf', 10)), 'Ms.', 'Ira', 'Wibowo', '+62', '8110000009', '1993-09-18', 'Indonesia'),
+('jaka.staf@airasia.com', crypt('nyawit', gen_salt('bf', 10)), 'Mr.', 'Jaka', 'Tingkir', '+62', '8110000010', '1994-10-19', 'Indonesia');
 
 -- 3. MEMBER (50 Data) 
 -- Kita ambil 50 email pertama dari tabel Pengguna. Kolom nomor_member otomatis generate.

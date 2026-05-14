@@ -105,6 +105,15 @@ export async function getAuthenticatedUserByEmail(email: string): Promise<Authen
   }
 }
 
+export async function loginUser(email: string, password: string): Promise<User> {
+  const normalizedEmail = email.trim().toLowerCase()
+  const result = await query(
+    'SELECT * FROM verifikasi_login($1, $2)',
+    [normalizedEmail, password],
+  )
+  return mapRowToUser(result.rows[0] as DbUserRow)
+}
+
 export async function getPublicUserByEmail(email: string): Promise<User | null> {
   const authUser = await getAuthenticatedUserByEmail(email)
   return authUser ? authUser.user : null
@@ -116,11 +125,6 @@ export async function createRegisteredUser(input: RegisterInput): Promise<User> 
 
   try {
     await client.query('BEGIN')
-
-    const existing = await client.query('SELECT 1 FROM pengguna WHERE lower(email) = lower($1) LIMIT 1', [normalizedEmail])
-    if (existing.rowCount) {
-      throw new Error('Email sudah terdaftar')
-    }
 
     const insertUser = await client.query(
       `
@@ -135,7 +139,7 @@ export async function createRegisteredUser(input: RegisterInput): Promise<User> 
           tanggal_lahir,
           kewarganegaraan
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        VALUES ($1, crypt($2, gen_salt('bf', 10)), $3, $4, $5, $6, $7, $8, $9)
       `,
       [
         normalizedEmail,

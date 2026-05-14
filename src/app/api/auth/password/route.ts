@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { AUTH_COOKIE_NAME, hashPassword, verifyJwt, verifyPassword } from '@/lib/auth/server'
+import { AUTH_COOKIE_NAME, verifyJwt } from '@/lib/auth/server'
 import { query } from '@/lib/db'
 
 export async function PATCH(request: NextRequest) {
@@ -24,19 +24,18 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Password baru minimal 6 karakter' }, { status: 400 })
     }
 
-    const result = await query('SELECT password FROM pengguna WHERE lower(email) = lower($1)', [payload.email])
+    const result = await query(
+      'SELECT 1 FROM pengguna WHERE lower(email) = lower($1) AND password = crypt($2, password)',
+      [payload.email, oldPassword],
+    )
     if (result.rows.length === 0) {
-      return NextResponse.json({ error: 'Pengguna tidak ditemukan' }, { status: 404 })
-    }
-
-    const currentHash = result.rows[0].password as string
-    const isValid = await verifyPassword(oldPassword, currentHash)
-    if (!isValid) {
       return NextResponse.json({ error: 'Password lama tidak sesuai' }, { status: 401 })
     }
 
-    const newHash = await hashPassword(newPassword)
-    await query('UPDATE pengguna SET password = $1 WHERE lower(email) = lower($2)', [newHash, payload.email])
+    await query(
+      'UPDATE pengguna SET password = crypt($1, gen_salt(\'bf\', 10)) WHERE lower(email) = lower($2)',
+      [newPassword, payload.email],
+    )
 
     return NextResponse.json({ data: { message: 'Password berhasil diperbarui' } })
   } catch (error) {
