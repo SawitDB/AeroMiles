@@ -64,8 +64,6 @@ function mapRowToUser(row: DbUserRow): User {
     tanggalBergabung: formatDate(row.tanggal_bergabung) || undefined,
     idStaf: row.id_staf ?? undefined,
     kodeMaskapai: row.kode_maskapai ?? undefined,
-    npm: role === 'staf' ? 'STAFF' : 'MEMBER',
-    miles: 0,
   }
 }
 
