@@ -1,10 +1,5 @@
 import { NextResponse } from 'next/server'
-import { Pool } from 'pg'
-import rawPool from '@/lib/db'
-
-const pool = rawPool as Pool
-
-// ─── GET: Ambil semua klaim member ───────────────────────────────────────────
+import pool from '@/lib/db'
 
 export async function GET(req: Request) {
   try {
