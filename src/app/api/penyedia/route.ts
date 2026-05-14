@@ -17,9 +17,9 @@ export async function GET() {
           WHEN m.id_penyedia IS NOT NULL THEN 'maskapai'
           ELSE 'mitra'
         END as type
-      FROM AEROMILES.PENYEDIA p
-      LEFT JOIN AEROMILES.MASKAPAI m ON p.id = m.id_penyedia
-      LEFT JOIN AEROMILES.MITRA mi ON p.id = mi.id_penyedia
+      FROM PENYEDIA p
+      LEFT JOIN MASKAPAI m ON p.id = m.id_penyedia
+      LEFT JOIN MITRA mi ON p.id = mi.id_penyedia
       ORDER BY p.id ASC;
     `;
     

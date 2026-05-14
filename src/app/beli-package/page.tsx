@@ -2,19 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getFromStorage, saveToStorage, updateMemberMiles } from "@/lib/storage";
+import { useAuth } from "@/components/AuthProvider";
+import { getFromStorage, saveToStorage } from "@/lib/storage";
 import ConfirmModal from "@/components/ConfirmModal";
 
 interface Package {
   id: string;
   jumlah_award_miles: number;
   harga_paket: number;
-}
-
-interface SessionData {
-  email: string;
-  role: string;
-  award_miles: number;
 }
 
 interface Purchase {
@@ -25,7 +20,7 @@ interface Purchase {
 
 export default function BeliPackagePage() {
   const router = useRouter();
-  const [session, setSession] = useState<SessionData | null>(null);
+  const { user, isHydrated: authHydrated } = useAuth();
   const [packages, setPackages] = useState<Package[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [awardMiles, setAwardMiles] = useState(0);
@@ -33,43 +28,24 @@ export default function BeliPackagePage() {
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    // Read session
-    const sessionStr = localStorage.getItem("aeromiles_session");
-    if (!sessionStr) {
+    if (!authHydrated) return
+    if (!user) {
       router.replace("/login");
       return;
     }
-
-    const sessionData = JSON.parse(sessionStr);
-    if (sessionData.role !== "member") {
+    if (user.role !== "member") {
       router.replace("/dashboard");
       return;
     }
 
-    setSession(sessionData);
-    setAwardMiles(sessionData.award_miles || 0);
+    setAwardMiles(user.awardMiles || 0);
 
-    // Read packages
     const packagesData = getFromStorage<Package>("aeromiles_amp");
     setPackages(packagesData);
     setHydrated(true);
+  }, [authHydrated, user, router]);
 
-    // Listen for session changes
-    const handleSessionChange = () => {
-      const newSessionStr = localStorage.getItem("aeromiles_session");
-      if (newSessionStr) {
-        const newSession = JSON.parse(newSessionStr);
-        setAwardMiles(newSession.award_miles || 0);
-      }
-    };
-
-    window.addEventListener("SESSION_CHANGED_EVENT", handleSessionChange);
-    return () => {
-      window.removeEventListener("SESSION_CHANGED_EVENT", handleSessionChange);
-    };
-  }, [router]);
-
-  if (!hydrated || !session) {
+  if (!hydrated || !user) {
     return null;
   }
 
@@ -79,27 +55,22 @@ export default function BeliPackagePage() {
   };
 
   const handleConfirmPurchase = () => {
-    if (!selectedPackage || !session) return;
+    if (!selectedPackage || !user) return;
 
-    // Update award_miles
     const newAwardMiles = awardMiles + selectedPackage.jumlah_award_miles;
-    updateMemberMiles(session.email, selectedPackage.jumlah_award_miles, 0);
 
-    // Append to aeromiles_member_amp
     const purchases = getFromStorage<Purchase>("aeromiles_member_amp");
     purchases.push({
       id_award_miles_package: selectedPackage.id,
-      email_member: session.email,
+      email_member: user.email,
       timestamp: new Date().toISOString(),
     });
     saveToStorage("aeromiles_member_amp", purchases);
 
-    // Update local state
     setAwardMiles(newAwardMiles);
     setShowModal(false);
     setSelectedPackage(null);
 
-    // Show toast (simple alert for now)
     alert(
       `✅ Pembelian berhasil! ${selectedPackage.jumlah_award_miles} miles telah ditambahkan.`
     );

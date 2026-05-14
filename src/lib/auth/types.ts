@@ -20,9 +20,6 @@ export type User = {
   // Staf only
   idStaf?: string
   kodeMaskapai?: string
-  // legacy
-  npm?: string
-  miles?: number
 }
 
 export type AuthState = {

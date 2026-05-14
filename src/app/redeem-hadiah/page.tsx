@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/AuthProvider";
 import { getFromStorage, saveToStorage } from "@/lib/storage";
 import ConfirmModal from "@/components/ConfirmModal";
 
@@ -24,17 +25,11 @@ interface Redeem {
   timestamp: string;
 }
 
-interface SessionData {
-  email: string;
-  role: string;
-  award_miles: number;
-}
-
 type Tab = "katalog" | "riwayat";
 
 export default function RedeemHadiahPage() {
   const router = useRouter();
-  const [session, setSession] = useState<SessionData | null>(null);
+  const { user, isHydrated: authHydrated } = useAuth();
   const [hadiah, setHadiah] = useState<Hadiah[]>([]);
   const [redeemHistory, setRedeemHistory] = useState<Redeem[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -45,45 +40,26 @@ export default function RedeemHadiahPage() {
   const [expandedDesc, setExpandedDesc] = useState<string | null>(null);
 
   useEffect(() => {
-    // Read session
-    const sessionStr = localStorage.getItem("aeromiles_session");
-    if (!sessionStr) {
+    if (!authHydrated) return
+    if (!user) {
       router.replace("/login");
       return;
     }
-
-    const sessionData = JSON.parse(sessionStr);
-    if (sessionData.role !== "member") {
+    if (user.role !== "member") {
       router.replace("/dashboard");
       return;
     }
 
-    setSession(sessionData);
-    setAwardMiles(sessionData.award_miles || 0);
+    setAwardMiles(user.awardMiles || 0);
 
-    // Read hadiah and redeem history
     const hadiahData = getFromStorage<Hadiah>("aeromiles_hadiah");
     const redeemData = getFromStorage<Redeem>("aeromiles_redeem");
     setHadiah(hadiahData);
     setRedeemHistory(redeemData);
     setHydrated(true);
+  }, [authHydrated, user, router]);
 
-    // Listen for session changes
-    const handleSessionChange = () => {
-      const newSessionStr = localStorage.getItem("aeromiles_session");
-      if (newSessionStr) {
-        const newSession = JSON.parse(newSessionStr);
-        setAwardMiles(newSession.award_miles || 0);
-      }
-    };
-
-    window.addEventListener("SESSION_CHANGED_EVENT", handleSessionChange);
-    return () => {
-      window.removeEventListener("SESSION_CHANGED_EVENT", handleSessionChange);
-    };
-  }, [router]);
-
-  if (!hydrated || !session) {
+  if (!hydrated || !user) {
     return null;
   }
 
@@ -103,7 +79,7 @@ export default function RedeemHadiahPage() {
   );
 
   const userRedeemHistory = redeemHistory.filter(
-    (r) => r.email_member === session.email
+    (r) => r.email_member === user.email
   );
 
   const handleRedeem = (item: Hadiah) => {
@@ -125,30 +101,11 @@ export default function RedeemHadiahPage() {
   const handleConfirmRedeem = () => {
     if (!selectedHadiah) return;
 
-    // Deduct miles
     const newAwardMiles = awardMiles - selectedHadiah.miles;
 
-    // Update session
-    const updatedSession: SessionData = {
-      ...session,
-      award_miles: newAwardMiles,
-    };
-    localStorage.setItem("aeromiles_session", JSON.stringify(updatedSession));
-
-    // Update aeromiles_users
-    const users = getFromStorage("aeromiles_users");
-    const userIndex = users.findIndex(
-      (u: any) => u.email === session.email
-    );
-    if (userIndex !== -1) {
-      users[userIndex].award_miles = Math.max(0, newAwardMiles);
-      saveToStorage("aeromiles_users", users);
-    }
-
-    // Append to aeromiles_redeem
     const redeems = getFromStorage<Redeem>("aeromiles_redeem");
     redeems.push({
-      email_member: session.email,
+      email_member: user.email,
       kode_hadiah: selectedHadiah.kode_hadiah,
       nama_hadiah: selectedHadiah.nama,
       miles_used: selectedHadiah.miles,
@@ -156,14 +113,10 @@ export default function RedeemHadiahPage() {
     });
     saveToStorage("aeromiles_redeem", redeems);
 
-    // Update local state
     setAwardMiles(newAwardMiles);
     setRedeemHistory(redeems);
     setShowModal(false);
     setSelectedHadiah(null);
-
-    // Emit session change
-    window.dispatchEvent(new Event("SESSION_CHANGED_EVENT"));
 
     alert(`✅ Redeem berhasil! ${selectedHadiah.miles} miles telah dipotong.`);
   };

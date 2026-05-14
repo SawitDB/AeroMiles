@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getFromStorage } from "@/lib/storage";
+import { useAuth } from "@/components/AuthProvider";
 
 interface Tier {
   id_tier: string;
@@ -11,11 +11,11 @@ interface Tier {
   minimal_tier_miles: number;
 }
 
-interface SessionData {
+interface MemberData {
   email: string;
-  role: string;
+  nomor_member: string;
+  tanggal_bergabung: string;
   id_tier: string;
-  total_miles: number;
 }
 
 const TIER_COLORS: Record<string, string> = {
@@ -36,37 +36,46 @@ const TIER_ORDER = ["BLUE", "SILVER", "GOLD", "PLATINUM"];
 
 export default function InfoTierPage() {
   const router = useRouter();
-  const [session, setSession] = useState<SessionData | null>(null);
+  const { user, isHydrated: authHydrated } = useAuth();
   const [tiers, setTiers] = useState<Tier[]>([]);
+  const [memberTier, setMemberTier] = useState<string>('BLUE');
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    // Read session
-    const sessionStr = localStorage.getItem("aeromiles_session");
-    if (!sessionStr) {
+    if (!authHydrated) return
+    if (!user) {
       router.replace("/login");
       return;
     }
-
-    const sessionData = JSON.parse(sessionStr);
-    if (sessionData.role !== "member") {
+    if (user.role !== "member") {
       router.replace("/dashboard");
       return;
     }
 
-    setSession(sessionData);
+    (async () => {
+      try {
+        const [tierRes, memberRes] = await Promise.all([
+          fetch("/api/tier"),
+          fetch(`/api/member?email=${encodeURIComponent(user.email)}`),
+        ]);
+        const tiersData: Tier[] = await tierRes.json();
+        if (memberRes.ok) {
+          const memberData: MemberData = await memberRes.json();
+          setMemberTier(memberData.id_tier);
+        }
+        setTiers(tiersData);
+      } catch (err) {
+        console.error("Failed to fetch data:", err);
+      }
+      setHydrated(true);
+    })();
+  }, [authHydrated, user, router]);
 
-    // Read tiers
-    const tiersData = getFromStorage<Tier>("aeromiles_tier");
-    setTiers(tiersData);
-    setHydrated(true);
-  }, [router]);
-
-  if (!hydrated || !session) {
+  if (!hydrated || !user) {
     return null;
   }
 
-  const currentTierIndex = TIER_ORDER.indexOf(session.id_tier);
+  const currentTierIndex = TIER_ORDER.indexOf(memberTier);
   const nextTierIndex = currentTierIndex + 1;
   const isHighestTier = currentTierIndex === TIER_ORDER.length - 1;
   const nextTier = isHighestTier
@@ -75,17 +84,16 @@ export default function InfoTierPage() {
 
   const milesNeeded = isHighestTier
     ? 0
-    : Math.max(0, (nextTier?.minimal_tier_miles || 0) - (session.total_miles || 0));
+    : Math.max(0, (nextTier?.minimal_tier_miles || 0) - (user.totalMiles || 0));
 
   const progressPercent = isHighestTier
     ? 100
     : Math.min(
         100,
-        ((session.total_miles || 0) / (nextTier?.minimal_tier_miles || 1)) * 100
+        ((user.totalMiles || 0) / (nextTier?.minimal_tier_miles || 1)) * 100
       );
 
-  const currentTier = tiers.find((t) => t.id_tier === session.id_tier);
-      console.log(session)
+  const currentTier = tiers.find((t) => t.id_tier === memberTier);
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8">
@@ -102,21 +110,21 @@ export default function InfoTierPage() {
           <div className="mb-4 flex items-center gap-3">
             <div
               className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-sm"
-              style={{ backgroundColor: TIER_COLORS[session.id_tier] }}
+              style={{ backgroundColor: TIER_COLORS[memberTier ?? 'BLUE'] }}
             >
 
-              {session.id_tier.charAt(0)}
+              {(memberTier ?? 'BLUE').charAt(0)}
             </div>
             <div>
               <p className="text-sm text-gray-600">Tier Saat Ini</p>
               <p className="text-lg font-bold text-gray-900">
-                {currentTier?.nama || session.id_tier}
+                {currentTier?.nama ?? memberTier ?? 'BLUE'}
               </p>
             </div>
           </div>
 
           <p className="mb-4 text-sm text-gray-700">
-            Total Miles: <span className="font-bold">{session.total_miles || 0}</span>
+            Total Miles: <span className="font-bold">{user.totalMiles || 0}</span>
           </p>
 
           {/* Progress bar */}
@@ -126,7 +134,7 @@ export default function InfoTierPage() {
                 className="h-3 rounded-full transition-all duration-300"
                 style={{
                   width: `${progressPercent}%`,
-                  backgroundColor: TIER_COLORS[session.id_tier],
+                  backgroundColor: TIER_COLORS[memberTier ?? 'BLUE'],
                 }}
               />
             </div>
@@ -150,7 +158,7 @@ export default function InfoTierPage() {
         {/* CARDS 2-5: Tier Cards */}
         <div className="space-y-4">
           {tiers.map((tier) => {
-            const isCurrentTier = tier.id_tier === session.id_tier;
+            const isCurrentTier = tier.id_tier === (memberTier ?? 'BLUE');
             const borderClass = isCurrentTier
               ? "border-2"
               : "border border-gray-200";

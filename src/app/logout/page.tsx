@@ -11,8 +11,9 @@ export default function LogoutPage() {
 
   useEffect(() => {
     if (!isHydrated) return
-    logout()
-    router.replace('/login')
+    logout().finally(() => {
+      router.replace('/login')
+    })
   }, [isHydrated, logout, router])
 
   return (

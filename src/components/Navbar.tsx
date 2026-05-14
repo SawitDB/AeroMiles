@@ -51,61 +51,26 @@ const STAF_LINKS = [
 ]
 
 export function Navbar() {
-  const { user, isHydrated } = useAuth()
+  const { user, isHydrated, logout } = useAuth()
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [sessionName, setSessionName] = useState<string>('')
-  const [sessionRole, setSessionRole] = useState<'member' | 'staf' | null>(null)
+
+  const pathname = usePathname()
 
   useEffect(() => {
-    function syncSession() {
-      if (typeof window === 'undefined') return
-      try {
-        const raw = window.localStorage.getItem('aeromiles_session')
-        if (!raw) {
-          setSessionRole(null)
-          setSessionName('')
-          return
-        }
-        const parsed = JSON.parse(raw) as { role?: 'member' | 'staf'; name?: string; first_mid_name?: string; last_name?: string }
-        setSessionRole(parsed.role ?? null)
-        setSessionName(parsed.name ?? [parsed.first_mid_name, parsed.last_name].filter(Boolean).join(' '))
-      } catch {
-        setSessionRole(null)
-        setSessionName('')
-      }
-    }
+    setOpen(false)
+  }, [pathname])
 
-    syncSession()
-
-    const handleSessionChanged = () => syncSession()
-    window.addEventListener('storage', handleSessionChanged)
-    window.addEventListener('aeromiles_session_changed', handleSessionChanged)
-
-    return () => {
-      window.removeEventListener('storage', handleSessionChanged)
-      window.removeEventListener('aeromiles_session_changed', handleSessionChanged)
-    }
-  }, [])
-
- const pathname = usePathname()
-    useEffect(() => {
-      setOpen(false)
-    }, [pathname])
-
-  function handleLogout() {
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem('aeromiles_session')
-      window.dispatchEvent(new Event('aeromiles_session_changed'))
-    }
+  async function handleLogout() {
+    await logout()
     router.push('/login')
   }
 
   if (!isHydrated) return null
 
-  const role = sessionRole ?? user?.role ?? null
+  const role = user?.role ?? null
   const linksToRender = role === 'staf' ? STAF_LINKS : role === 'member' ? MEMBER_LINKS : GUEST_LINKS
-  const firstName = sessionName ? sessionName.split(' ')[0] : user?.firstName ?? ''
+  const firstName = user?.name ? user.name.split(' ')[0] : user?.firstName ?? ''
   const roleLabel = role === 'staf' ? 'Staf' : role === 'member' ? 'Member' : 'Tamu'
 
   return (
@@ -125,7 +90,7 @@ export function Navbar() {
           {role ? (
             <>
               <span className="hidden text-xs text-white/60 sm:block">
-                {sessionName || user?.name || ''} · <span className="text-white/80">{roleLabel}</span>
+                {user?.name || ''} · <span className="text-white/80">{roleLabel}</span>
               </span>
               <button
                 type="button"
@@ -146,7 +111,6 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile nav */}
       <div className="flex gap-1 overflow-x-auto px-4 pb-2 lg:hidden">
         {linksToRender.map((l) => (
           <NavLink key={l.href} href={l.href} label={l.label} />
@@ -154,7 +118,7 @@ export function Navbar() {
       </div>
 
       {open ? (
-        <div className="md:hidden border-t border-white/10 bg-secondary/90 px-4 py-3">
+        <div className="border-t border-white/10 bg-secondary/90 px-4 py-3 md:hidden">
           <nav className="flex flex-col gap-2">
             {linksToRender.map((l) => (
               <NavLink key={l.href} href={l.href} label={l.label} />

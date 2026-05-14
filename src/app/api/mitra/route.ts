@@ -7,12 +7,12 @@ export async function POST(req: Request) {
   
   try {
     // 1. Insert ke tabel PENYEDIA dulu (agar dapat ID)
-    const penyediaRes = await pool.query('INSERT INTO AEROMILES.PENYEDIA DEFAULT VALUES RETURNING id');
+    const penyediaRes = await pool.query('INSERT INTO PENYEDIA DEFAULT VALUES RETURNING id');
     const newId = penyediaRes.rows[0].id;
 
     // 2. Insert ke tabel MITRA
     await pool.query(
-      'INSERT INTO AEROMILES.MITRA (email_mitra, id_penyedia, nama_mitra, tanggal_kerja_sama) VALUES ($1, $2, $3, $4)',
+      'INSERT INTO MITRA (email_mitra, id_penyedia, nama_mitra, tanggal_kerja_sama) VALUES ($1, $2, $3, $4)',
       [email_mitra, newId, nama_mitra, tanggal_kerja_sama]
     );
 
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
 // READ (Ambil Data Mitra)
 export async function GET() {
   try {
-    const res = await pool.query('SELECT * FROM AEROMILES.MITRA ORDER BY tanggal_kerja_sama DESC');
+    const res = await pool.query('SELECT * FROM MITRA ORDER BY tanggal_kerja_sama DESC');
     return NextResponse.json(res.rows);
   } catch (error) {
     return NextResponse.json({ error: 'Gagal mengambil data' }, { status: 500 });
@@ -38,7 +38,7 @@ export async function PUT(req: Request) {
   
   try {
     await pool.query(
-      'UPDATE AEROMILES.MITRA SET nama_mitra = $1, tanggal_kerja_sama = $2 WHERE email_mitra = $3',
+      'UPDATE MITRA SET nama_mitra = $1, tanggal_kerja_sama = $2 WHERE email_mitra = $3',
       [nama_mitra, tanggal_kerja_sama, old_email]
     );
     return NextResponse.json({ success: true });
@@ -54,9 +54,9 @@ export async function DELETE(req: Request) {
   try {
     // Karena di SQL DDL ada `ON DELETE CASCADE`, menghapus Mitra juga bisa langsung menghapus penyedia/hadiah jika foreign key diset dengan benar.
     // Namun yang paling aman adalah mencari id_penyedia dulu, lalu hapus Penyedia (karena Mitra mereferensi Penyedia)
-    const res = await pool.query('SELECT id_penyedia FROM AEROMILES.MITRA WHERE email_mitra = $1', [email_mitra]);
+    const res = await pool.query('SELECT id_penyedia FROM MITRA WHERE email_mitra = $1', [email_mitra]);
     if(res.rows.length > 0) {
-       await pool.query('DELETE FROM AEROMILES.PENYEDIA WHERE id = $1', [res.rows[0].id_penyedia]);
+       await pool.query('DELETE FROM PENYEDIA WHERE id = $1', [res.rows[0].id_penyedia]);
     }
     
     return NextResponse.json({ success: true });

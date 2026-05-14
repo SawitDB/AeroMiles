@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
+import { useAuth } from '@/components/AuthProvider'
 
 /* ─── Types ──────────────────────────────────────────────── */
 type Penyedia = { id: number; label: string; type: 'maskapai' | 'mitra' }
@@ -37,7 +38,7 @@ function isActive(h: Hadiah): boolean {
 
 /* ─── Component ──────────────────────────────────────────── */
 export default function KelolaHadiahPenyediaPage() {
-  const [session, setSession] = useState<{ role?: string; email?: string } | null>(null)
+  const { user, isHydrated: authHydrated } = useAuth()
   const [isHydrated, setIsHydrated] = useState(false)
   const [activeTab, setActiveTab] = useState<'hadiah' | 'penyedia'>('hadiah')
 
@@ -80,13 +81,9 @@ export default function KelolaHadiahPenyediaPage() {
   };
 
   useEffect(() => {
-    const raw = typeof window !== 'undefined' ? localStorage.getItem('aeromiles_session') : null
-    if (raw) {
-      try { setSession(JSON.parse(raw)) } catch { setSession(null) }
-    }
-    
+    if (!authHydrated) return
     fetchDatabase().then(() => setIsHydrated(true));
-  }, [])
+  }, [authHydrated])
 
   /* ── Filter ── */
   const filtered = useMemo(() => {
@@ -111,7 +108,7 @@ export default function KelolaHadiahPenyediaPage() {
       <p className="text-sm text-white/70">Memuat data dari database…</p>
     </main>
   )
-  if (isHydrated && session && session.role !== 'staf') return (
+  if (isHydrated && user && user.role !== 'staf') return (
     <main className="flex min-h-screen items-center justify-center p-6">
       <div className="rounded-2xl bg-white/90 p-8 text-center shadow">
         <p className="text-lg font-bold text-red-600">Akses Ditolak</p>

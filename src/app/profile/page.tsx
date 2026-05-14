@@ -1,6 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useRequireAuth } from '@/lib/auth/useRequireAuth'
 import { useAuth } from '@/components/AuthProvider'
 
@@ -20,8 +21,9 @@ const MASKAPAI_OPTIONS = [
 ]
 
 export default function ProfilePage() {
+  const router = useRouter()
   const { user, isHydrated } = useRequireAuth()
-  const { updateProfile, updatePassword } = useAuth()
+  const { updateProfile } = useAuth()
 
   const [salutation, setSalutation] = useState('')
   const [firstName, setFirstName] = useState('')
@@ -77,7 +79,7 @@ export default function ProfilePage() {
     setProfileLoading(false)
   }
 
-  function handlePasswordSubmit(e: FormEvent) {
+  async function handlePasswordSubmit(e: FormEvent) {
     e.preventDefault()
     setPwMsg(null)
     if (newPassword !== confirmPassword) {
@@ -89,17 +91,27 @@ export default function ProfilePage() {
       return
     }
     setPwLoading(true)
-    if (oldPassword !== 'password123') {
-      setPwMsg({ type: 'error', text: 'Password lama tidak sesuai.' })
-      setPwLoading(false)
-      return
+    try {
+      const res = await fetch('/api/auth/password', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ oldPassword, newPassword }),
+      })
+      const body = await res.json()
+      if (!res.ok) {
+        setPwMsg({ type: 'error', text: body.error || 'Gagal mengubah password.' })
+        setPwLoading(false)
+        return
+      }
+      setPwMsg({ type: 'success', text: 'Password berhasil diubah.' })
+      setOldPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setShowPasswordForm(false)
+    } catch {
+      setPwMsg({ type: 'error', text: 'Gagal mengubah password.' })
     }
-    updatePassword(newPassword)
-    setPwMsg({ type: 'success', text: 'Password berhasil diubah.' })
-    setOldPassword('')
-    setNewPassword('')
-    setConfirmPassword('')
-    setShowPasswordForm(false)
     setPwLoading(false)
   }
 

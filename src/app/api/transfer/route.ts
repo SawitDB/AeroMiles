@@ -9,7 +9,7 @@ export async function GET(req: Request) {
 
     let query = `
       SELECT email_member_1, email_member_2, timestamp, jumlah, catatan
-      FROM AEROMILES.TRANSFER
+      FROM TRANSFER
       ORDER BY timestamp DESC
     `
     let params: any[] = []
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     if (emailMember) {
       query = `
         SELECT email_member_1, email_member_2, timestamp, jumlah, catatan
-        FROM AEROMILES.TRANSFER
+        FROM TRANSFER
         WHERE email_member_1 = $1 OR email_member_2 = $1
         ORDER BY timestamp DESC
       `
@@ -51,14 +51,14 @@ export async function POST(req: Request) {
     }
 
     // Cek member pengirim ada
-    const senderRes = await pool.query(`SELECT email FROM AEROMILES.MEMBER WHERE email = $1`, [email_member_1])
+    const senderRes = await pool.query(`SELECT email FROM MEMBER WHERE email = $1`, [email_member_1])
 
     if (senderRes.rows.length === 0) {
       return NextResponse.json({ error: 'Member pengirim tidak ditemukan' }, { status: 404 })
     }
 
     // Cek member penerima ada
-    const recipientRes = await pool.query(`SELECT email FROM AEROMILES.MEMBER WHERE email = $1`, [email_member_2])
+    const recipientRes = await pool.query(`SELECT email FROM MEMBER WHERE email = $1`, [email_member_2])
 
     if (recipientRes.rows.length === 0) {
       return NextResponse.json({ error: 'Member penerima tidak ditemukan' }, { status: 404 })
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
 
     // Insert transfer
     const res = await pool.query(
-      `INSERT INTO AEROMILES.TRANSFER (email_member_1, email_member_2, timestamp, jumlah, catatan)
+      `INSERT INTO TRANSFER (email_member_1, email_member_2, timestamp, jumlah, catatan)
        VALUES ($1, $2, NOW(), $3, $4)
        RETURNING email_member_1, email_member_2, timestamp, jumlah, catatan`,
       [email_member_1, email_member_2, jumlah, catatan || null]

@@ -11,8 +11,7 @@ export async function runSeed() {
     const checkQuery = `
       SELECT EXISTS (
         SELECT FROM information_schema.tables 
-        WHERE table_schema = 'aeromiles' 
-        AND table_name = 'pengguna'
+        WHERE table_name = 'pengguna'
       );
     `;
     const { rows } = await client.query(checkQuery);

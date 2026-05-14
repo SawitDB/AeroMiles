@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { seedAllData } from '@/lib/seedData'
+import { useAuth } from '@/components/AuthProvider'
 
 /* ─── Types ──────────────────────────────────────────────── */
 type ClaimStatus = 'Menunggu' | 'Disetujui' | 'Ditolak'
@@ -54,8 +54,7 @@ function formatDateTime(value: string) {
 
 /* ─── Component ──────────────────────────────────────────── */
 export default function KlaimMilesPage() {
-  const [session, setSession] = useState<{ email: string; role: string } | null>(null)
-  const [isHydrated, setIsHydrated] = useState(false)
+  const { user, isHydrated } = useAuth()
   const [claims, setClaims] = useState<ClaimRequest[]>([])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'Semua' | ClaimStatus>('Semua')
@@ -68,25 +67,19 @@ export default function KlaimMilesPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    seedAllData()
-    const raw = typeof window !== 'undefined' ? localStorage.getItem('aeromiles_session') : null
-    if (raw) {
-      try { setSession(JSON.parse(raw)) } catch { setSession(null) }
-    }
     setClaims(loadClaims())
-    setIsHydrated(true)
   }, [])
 
   const filtered = useMemo(() => {
-    if (!session) return []
+    if (!user) return []
     return claims.filter(c => {
-      if (c.email_member !== session.email) return false
+      if (c.email_member !== user.email) return false
       const q = search.toLowerCase()
       const matchSearch = !q || [c.maskapai, c.flight_number, c.nomor_tiket, c.pnr].some(v => v.toLowerCase().includes(q))
       const matchStatus = statusFilter === 'Semua' || c.status_penerimaan === statusFilter
       return matchSearch && matchStatus
     })
-  }, [claims, session, search, statusFilter])
+  }, [claims, user, search, statusFilter])
 
   function handleSave() {
     if (!form.maskapai || !form.bandara_asal || !form.bandara_tujuan || !form.tanggal_penerbangan || !form.flight_number || !form.nomor_tiket || !form.pnr) {
@@ -101,7 +94,7 @@ export default function KlaimMilesPage() {
       if (modalMode === 'add') {
         const newC: ClaimRequest = {
           id: Date.now(),
-          email_member: session?.email || '',
+          email_member: user?.email || '',
           ...form,
           status_penerimaan: 'Menunggu',
           timestamp: now,
@@ -130,7 +123,7 @@ export default function KlaimMilesPage() {
   }
 
   if (!isHydrated) return <div className="p-6 text-white">Memuat…</div>
-  if (isHydrated && (!session || session.role !== 'member')) return <div className="p-6 text-white">Akses Ditolak. Khusus Member.</div>
+  if (isHydrated && (!user || user.role !== 'member')) return <div className="p-6 text-white">Akses Ditolak. Khusus Member.</div>
 
   const stats = [
     { label: 'Total Klaim', value: filtered.length, accent: 'from-blue-500 to-cyan-500' },

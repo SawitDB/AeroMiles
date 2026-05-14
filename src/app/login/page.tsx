@@ -4,27 +4,11 @@ import { FormEvent, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
-const HARD_CODED_USERS = [
-  {
-    email: 'member@aeromiles.com',
-    password: 'member123',
-    role: 'member' as const,
-    first_mid_name: 'Aero',
-    last_name: 'Miles',
-    salutation: 'Mr.',
-  },
-  {
-    email: 'staf@aeromiles.com',
-    password: 'staf123',
-    role: 'staf' as const,
-    first_mid_name: 'Aero',
-    last_name: 'Staff',
-    salutation: 'Ms.',
-  },
-]
+import { useAuth } from '@/components/AuthProvider'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { login, isHydrated } = useAuth()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -36,6 +20,7 @@ export default function LoginPage() {
       setError('Email dan password harus diisi')
       return false
     }
+
     setError(null)
     return true
   }
@@ -43,48 +28,22 @@ export default function LoginPage() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!validate()) return
+
     setIsSubmitting(true)
+    login(email, password)
+      .then(() => router.push('/dashboard'))
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Terjadi kesalahan, coba lagi')
+      })
+      .finally(() => setIsSubmitting(false))
+  }
 
-    try {
-      const normalizedEmail = email.trim().toLowerCase()
-      let found = null
-
-      if (normalizedEmail === HARD_CODED_USERS[0].email && password === HARD_CODED_USERS[0].password) {
-        found = HARD_CODED_USERS[0]
-      }
-
-      if (normalizedEmail === HARD_CODED_USERS[1].email && password === HARD_CODED_USERS[1].password) {
-        found = HARD_CODED_USERS[1]
-      }
-
-      if (!found) {
-        setError('Email atau password salah')
-        setIsSubmitting(false)
-        return
-      }
-
-      const session = {
-        email: found.email,
-        role: found.role,
-        salutation: found.salutation,
-        first_mid_name: found.first_mid_name,
-        last_name: found.last_name,
-        name: `${found.first_mid_name} ${found.last_name}`,
-        mobile_number: '',
-        country_code: '',
-        kewarganegaraan: '',
-        tanggal_lahir: '',
-        id_tier: 'Blue',
-      }
-
-      window.localStorage.setItem('aeromiles_session', JSON.stringify(session))
-      window.dispatchEvent(new Event('aeromiles_session_changed'))
-      setIsSubmitting(false)
-      router.push('/dashboard')
-    } catch (err) {
-      setError('Terjadi kesalahan, coba lagi')
-      setIsSubmitting(false)
-    }
+  if (!isHydrated) {
+    return (
+      <main className="flex min-h-screen items-center justify-center p-6">
+        <p className="text-sm text-slate-500">Memuat...</p>
+      </main>
+    )
   }
 
   return (

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/AuthProvider";
 import { getFromStorage, saveToStorage } from "@/lib/storage";
 import ConfirmModal from "@/components/ConfirmModal";
 
@@ -11,8 +12,8 @@ interface Transaction {
   email_member: string;
   jumlah_miles: number;
   timestamp: string;
-  source_key: string; // untuk tracking source
-  source_index: number; // untuk tracking index
+  source_key: string;
+  source_index: number;
 }
 
 interface Member {
@@ -22,17 +23,12 @@ interface Member {
   role: string;
 }
 
-interface SessionData {
-  email: string;
-  role: string;
-}
-
 type Tab = "riwayat" | "topMember";
 type TransactionTypeFilter = "all" | "Transfer" | "Redeem" | "Pembelian" | "Klaim";
 
 export default function LaporanTransaksiPage() {
   const router = useRouter();
-  const [session, setSession] = useState<SessionData | null>(null);
+  const { user, isHydrated: authHydrated } = useAuth();
   const [hydrated, setHydrated] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("riwayat");
 
@@ -44,6 +40,7 @@ export default function LaporanTransaksiPage() {
   // Transactions
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [session, setSession] = useState<{ email: string; role: string } | null>(null);
 
   // Filters
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>("all");
@@ -59,19 +56,15 @@ export default function LaporanTransaksiPage() {
 
   // Initialize
   useEffect(() => {
-    const sessionStr = localStorage.getItem("aeromiles_session");
-    if (!sessionStr) {
+    if (!authHydrated) return
+    if (!user) {
       router.replace("/login");
       return;
     }
-
-    const sessionData = JSON.parse(sessionStr);
-    if (sessionData.role !== "staf") {
+    if (user.role !== "staf") {
       router.replace("/dashboard");
       return;
     }
-
-    setSession(sessionData);
 
     // Load all data
     const users = getFromStorage<Member>("aeromiles_users");
@@ -162,7 +155,7 @@ export default function LaporanTransaksiPage() {
     setTotalKlaimDisetujui(approvedClaims);
 
     setHydrated(true);
-  }, [router]);
+  }, [authHydrated, user, router]);
 
   if (!hydrated || !session) {
     return null;

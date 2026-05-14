@@ -1,32 +1,7 @@
-import type { AuthState, Identitas, Member } from './types'
+import type { Identitas, Member } from './types'
 
-const AUTH_KEY = 'aeromiles.auth'
 const MEMBERS_KEY = 'aeromiles.members'
 const IDENTITAS_KEY = 'aeromiles.identitas'
-
-
-export function loadAuthState(): AuthState {
-  if (typeof window === 'undefined') return { user: null }
-  try {
-    const raw = window.localStorage.getItem(AUTH_KEY)
-    if (!raw) return { user: null }
-    const parsed = JSON.parse(raw) as AuthState
-    if (!parsed || typeof parsed !== 'object') return { user: null }
-    return { user: parsed.user ?? null }
-  } catch {
-    return { user: null }
-  }
-}
-
-export function saveAuthState(state: AuthState) {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(AUTH_KEY, JSON.stringify(state))
-}
-
-export function clearAuthState() {
-  if (typeof window === 'undefined') return
-  window.localStorage.removeItem(AUTH_KEY)
-}
 
 
 export function loadMembers(): Member[] {
@@ -169,13 +144,3 @@ function getDefaultIdentitas(): Identitas[] {
   return defaults
 }
 
-// Legacy compat
-export type RegisteredUser = { name: string; contact: string; username: string }
-const REGISTERED_USERS_KEY = 'aeromiles.registeredUsers'
-export function appendRegisteredUser(user: RegisteredUser) {
-  if (typeof window === 'undefined') return
-  const raw = window.localStorage.getItem(REGISTERED_USERS_KEY)
-  const list = raw ? (JSON.parse(raw) as RegisteredUser[]) : []
-  const next = Array.isArray(list) ? [...list, user] : [user]
-  window.localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(next))
-}

@@ -15,7 +15,7 @@ export async function GET(req: Request) {
          id, email_member, maskapai, bandara_asal, bandara_tujuan,
          tanggal_penerbangan, flight_number, nomor_tiket, kelas_kabin,
          pnr, status_penerimaan, timestamp, email_staf
-       FROM AEROMILES.CLAIM_MISSING_MILES
+       FROM CLAIM_MISSING_MILES
        WHERE email_member = $1
        ORDER BY timestamp DESC`,
       [emailMember]
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
 
     const dupCheck = await pool.query(
       `SELECT id
-       FROM AEROMILES.CLAIM_MISSING_MILES
+       FROM CLAIM_MISSING_MILES
        WHERE email_member       = $1
          AND flight_number      = $2
          AND tanggal_penerbangan = $3
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
     }
 
     const { rows } = await pool.query(
-      `INSERT INTO AEROMILES.CLAIM_MISSING_MILES
+      `INSERT INTO CLAIM_MISSING_MILES
          (email_member, maskapai, bandara_asal, bandara_tujuan, tanggal_penerbangan,
           flight_number, nomor_tiket, kelas_kabin, pnr, status_penerimaan, timestamp)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Menunggu', NOW())
@@ -114,7 +114,7 @@ export async function PUT(req: Request) {
     }
 
     const statusCheck = await pool.query(
-      `SELECT status_penerimaan FROM AEROMILES.CLAIM_MISSING_MILES WHERE id = $1`,
+      `SELECT status_penerimaan FROM CLAIM_MISSING_MILES WHERE id = $1`,
       [id]
     )
 
@@ -130,7 +130,7 @@ export async function PUT(req: Request) {
     }
 
     await pool.query(
-      `UPDATE AEROMILES.CLAIM_MISSING_MILES
+      `UPDATE CLAIM_MISSING_MILES
        SET
          maskapai            = $1,
          bandara_asal        = $2,
@@ -171,7 +171,7 @@ export async function DELETE(req: Request) {
     }
 
     const statusCheck = await pool.query(
-      `SELECT status_penerimaan FROM AEROMILES.CLAIM_MISSING_MILES WHERE id = $1`,
+      `SELECT status_penerimaan FROM CLAIM_MISSING_MILES WHERE id = $1`,
       [id]
     )
 
@@ -187,7 +187,7 @@ export async function DELETE(req: Request) {
     }
 
     await pool.query(
-      `DELETE FROM AEROMILES.CLAIM_MISSING_MILES WHERE id = $1`,
+      `DELETE FROM CLAIM_MISSING_MILES WHERE id = $1`,
       [id]
     )
 

@@ -8,7 +8,7 @@ export async function GET(req: Request) {
       `SELECT id, email_member, maskapai, bandara_asal, bandara_tujuan, tanggal_penerbangan,
               flight_number, nomor_tiket, kelas_kabin, pnr, status_penerimaan, timestamp,
               email_staf
-       FROM AEROMILES.CLAIM_MISSING_MILES
+       FROM CLAIM_MISSING_MILES
        ORDER BY CASE 
                  WHEN status_penerimaan = 'Menunggu' THEN 0
                  ELSE 1
@@ -37,7 +37,7 @@ export async function PUT(req: Request) {
     }
 
     await pool.query(
-      `UPDATE AEROMILES.CLAIM_MISSING_MILES 
+      `UPDATE CLAIM_MISSING_MILES 
        SET status_penerimaan = $1, email_staf = $2
        WHERE id = $3`,
       [status_penerimaan, email_staf, id]
