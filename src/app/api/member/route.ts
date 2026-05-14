@@ -11,7 +11,7 @@ export async function GET(req: Request) {
     }
 
     const res = await pool.query(
-      'SELECT email, nomor_member, tanggal_bergabung, id_tier FROM MEMBER WHERE email = $1',
+      'SELECT email, nomor_member, tanggal_bergabung, id_tier, award_miles, total_miles FROM MEMBER WHERE email = $1',
       [email]
     );
 
