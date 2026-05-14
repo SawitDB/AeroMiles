@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Providers } from './providers'
-import { Navbar } from '@/components/Navbar.tsx'
+import { Navbar } from '@/components/Navbar'
 
 export const metadata: Metadata = {
   title: 'AeroMiles',
