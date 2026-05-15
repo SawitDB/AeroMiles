@@ -42,7 +42,7 @@ function formatDateTime(value: string) {
 }
 
 export default function Page() {
-  const { user, isHydrated } = useAuth()
+  const { user, isHydrated, updateProfile } = useAuth()
   const [transfers, setTransfers] = useState<TransferRecord[]>([])
   const [memberByEmail, setMemberByEmail] = useState<Record<string, MemberLookup>>({})
   const [memberData, setMemberData] = useState<{ award_miles?: number; total_miles?: number } | null>(null)
@@ -52,19 +52,46 @@ export default function Page() {
   const [formError, setFormError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const fetchTransfers = () => {
+  const fetchTransfers = async () => {
+    if (!user) return
     try {
-      const raw = localStorage.getItem('aeromiles_transfer')
-      const all: TransferRecord[] = raw ? JSON.parse(raw) : []
-      setTransfers(all)
+      const res = await fetch(`/api/transfer?email=${encodeURIComponent(user.email)}`)
+      if (res.ok) {
+        const data = await res.json()
+        setTransfers(data)
+      }
     } catch (err) {
-      console.error(err)
+      console.error('Failed to fetch transfers', err)
+    }
+  }
+
+  const loadSelf = async () => {
+    if (!user) return
+    try {
+      const res = await fetch(`/api/member/${encodeURIComponent(user.email)}`)
+      if (!res.ok) return
+      const data = await res.json()
+      setMemberData({ award_miles: data.award_miles, total_miles: data.total_miles })
+      setMemberByEmail((prev) => ({
+        ...prev,
+        [user.email]: {
+          email: user.email,
+          salutation: user.salutation,
+          first_mid_name: user.firstName,
+          last_name: user.lastName,
+        },
+      }))
+    } catch (err) {
+      console.error('Failed to load member data', err)
     }
   }
 
   useEffect(() => {
-    fetchTransfers()
-  }, [])
+    if (isHydrated && user) {
+      fetchTransfers()
+      loadSelf()
+    }
+  }, [isHydrated, user])
 
   useEffect(() => {
     if (!user?.email || transfers.length === 0) return
@@ -79,23 +106,13 @@ export default function Page() {
             .filter((transfer) => transfer.email_member_1 === currentUser.email || transfer.email_member_2 === currentUser.email)
             .flatMap((transfer) => [transfer.email_member_1, transfer.email_member_2])
         )
-      )
+      ).filter(email => email !== currentUser.email && !memberByEmail[email])
+
+      if (uniqueEmails.length === 0) return
 
       const entries = await Promise.all(
         uniqueEmails.map(async (email) => {
-          if (email === currentUser.email) {
-            return [
-              email,
-              {
-                email,
-                salutation: currentUser.salutation,
-                first_mid_name: currentUser.firstName,
-                last_name: currentUser.lastName,
-              },
-            ] as const
-          }
-
-          const response = await fetch(`/api/member?email=${encodeURIComponent(email)}`)
+          const response = await fetch(`/api/member/${encodeURIComponent(email)}`)
           if (!response.ok) {
             return null
           }
@@ -115,7 +132,7 @@ export default function Page() {
 
       if (cancelled) return
 
-      const nextMap: Record<string, MemberLookup> = {}
+      const nextMap: Record<string, MemberLookup> = { ...memberByEmail }
       entries.forEach((entry) => {
         if (entry) {
           const [email, member] = entry
@@ -128,48 +145,13 @@ export default function Page() {
 
     loadMembers().catch((error) => console.error(error))
 
-    // also fetch current member data (award/total miles) from server
-    const loadSelf = async () => {
-      try {
-        const res = await fetch(`/api/member?email=${encodeURIComponent(currentUser.email)}`)
-        if (!res.ok) return
-        const data = await res.json()
-        setMemberData({ award_miles: data.award_miles, total_miles: data.total_miles })
-        // ensure self is in memberByEmail map
-        setMemberByEmail((prev) => ({
-          ...prev,
-          [currentUser.email]: {
-            email: currentUser.email,
-            salutation: currentUser.salutation,
-            first_mid_name: currentUser.firstName,
-            last_name: currentUser.lastName,
-          },
-        }))
-      } catch (err) {
-        console.error('Failed to load member data', err)
-      }
-    }
-
-    loadSelf()
-
     return () => {
       cancelled = true
     }
   }, [transfers, user])
 
-  // Dynamic balance calculation: use server award_miles as base, then apply local transfers
-  const sessionMiles = useMemo(() => {
-    if (!user) return 0
-    const base = memberData?.award_miles ?? 0
-
-    const adjusted = transfers.reduce((acc, t) => {
-      if (t.email_member_1 === user.email) return acc - t.jumlah
-      if (t.email_member_2 === user.email) return acc + t.jumlah
-      return acc
-    }, base)
-
-    return adjusted
-  }, [user, transfers, memberData])
+  // Saldo is taken directly from server memberData, trigger handles updates
+  const sessionMiles = memberData?.award_miles ?? 0
 
   const filteredTransfers = useMemo(() => {
     if (!user) return []
@@ -224,26 +206,37 @@ export default function Page() {
     }
 
     setIsLoading(true)
+    setFormError('')
     try {
       // Validate recipient email exists in database
-      const memberRes = await fetch(`/api/member?email=${encodeURIComponent(form.email_member_2)}`)
+      const memberRes = await fetch(`/api/member/${encodeURIComponent(form.email_member_2)}`)
       if (!memberRes.ok) {
         setFormError('Email penerima tidak ditemukan dalam sistem.')
         setIsLoading(false)
         return
       }
 
-      const newT: TransferRecord = {
-        email_member_1: user?.email || '',
-        email_member_2: form.email_member_2,
-        timestamp: new Date().toISOString(),
-        jumlah: amount,
-        catatan: form.catatan.trim() || null,
+      const res = await fetch('/api/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email_member_1: user?.email,
+          email_member_2: form.email_member_2,
+          jumlah: amount,
+          catatan: form.catatan.trim() || null,
+        }),
+      })
+
+      const result = await res.json()
+      if (!res.ok) {
+        setFormError(result.error || 'Gagal melakukan transfer.')
+        return
       }
 
-      const next = [...transfers, newT]
-      localStorage.setItem('aeromiles_transfer', JSON.stringify(next))
-      setTransfers(next)
+      await fetchTransfers()
+      await loadSelf() // refresh saldo
+      updateProfile({ awardMiles: sessionMiles - amount }) // optimistic or just let next fetch handle it
+
       setModalMode(null)
       setForm(EMPTY_FORM)
       setFormError('')

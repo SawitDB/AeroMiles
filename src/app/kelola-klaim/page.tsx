@@ -55,17 +55,19 @@ export default function Page() {
   const [selectedClaim, setSelectedClaim] = useState<ClaimRequest | null>(null)
   const [reviewStatus, setReviewStatus] = useState<ClaimStatus>('Disetujui')
   const [reviewError, setReviewError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const fetchClaims = () => {
+  const fetchClaims = async () => {
     setIsLoading(true)
     try {
-      const raw = localStorage.getItem('aeromiles_claim')
-      const data = raw ? JSON.parse(raw) : []
+      const res = await fetch('/api/claim-review')
+      if (!res.ok) throw new Error('Gagal mengambil data klaim')
+      const data = await res.json()
       setClaims(data)
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      setReviewError('Gagal memuat klaim dari storage.')
+      setReviewError(err.message || 'Gagal memuat klaim dari database.')
     } finally {
       setIsLoading(false)
     }
@@ -80,7 +82,7 @@ export default function Page() {
     const q = search.trim().toLowerCase()
     return claims.filter((claim) => {
       const matchSearch = !q || [claim.email_member, claim.maskapai, claim.flight_number, claim.nomor_tiket, claim.pnr]
-        .some((value) => value.toLowerCase().includes(q))
+        .some((value) => value?.toLowerCase().includes(q))
       const matchStatus = statusFilter === 'Semua' ? true : claim.status_penerimaan === statusFilter
       const matchMaskapai = maskapaiFilter === 'Semua' ? true : claim.maskapai === maskapaiFilter
       return matchSearch && matchStatus && matchMaskapai
@@ -112,27 +114,38 @@ export default function Page() {
     setSelectedClaim(claim)
     setReviewStatus(claim.status_penerimaan === 'Menunggu' ? 'Disetujui' : claim.status_penerimaan)
     setReviewError('')
+    setSuccessMessage('')
   }
 
-  function saveReview() {
-    if (!selectedClaim) return
+  async function saveReview() {
+    if (!selectedClaim || !user) return
 
     setIsLoading(true)
+    setReviewError('')
+    setSuccessMessage('')
     try {
-      const raw = localStorage.getItem('aeromiles_claim')
-      let list: ClaimRequest[] = raw ? JSON.parse(raw) : []
+      const res = await fetch('/api/claim-review', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedClaim.id,
+          status_penerimaan: reviewStatus,
+          email_staf: user.email
+        }),
+      })
 
-      list = list.map(c => c.id === selectedClaim.id
-        ? { ...c, status_penerimaan: reviewStatus, email_staf: user?.email }
-        : c
-      )
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Gagal menyimpan review')
 
-      localStorage.setItem('aeromiles_claim', JSON.stringify(list))
-      setSelectedClaim(null)
+      setSuccessMessage(result.message)
       fetchClaims()
-    } catch (err) {
+      // Wait a bit so the user can see the success message before closing
+      setTimeout(() => {
+        if (!reviewError) setSelectedClaim(null)
+      }, 2000)
+    } catch (err: any) {
       console.error(err)
-      setReviewError('Gagal menyimpan review ke storage.')
+      setReviewError(err.message || 'Gagal menyimpan review ke database.')
     } finally {
       setIsLoading(false)
     }
@@ -212,7 +225,11 @@ export default function Page() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {isLoading && claims.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-14 text-center text-slate-400">Memuat data klaim…</td>
+                  </tr>
+                ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-14 text-center text-slate-400">Belum ada data klaim yang cocok dengan filter.</td>
                   </tr>
@@ -295,6 +312,7 @@ export default function Page() {
             </div>
 
             {reviewError ? <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{reviewError}</p> : null}
+            {successMessage ? <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{successMessage}</p> : null}
 
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button onClick={() => setSelectedClaim(null)} className="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200">Batal</button>
