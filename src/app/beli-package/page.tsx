@@ -40,22 +40,27 @@ export default function BeliPackagePage() {
       return;
     }
 
-    setAwardMiles(user.awardMiles || 0);
-
-    async function fetchPackages() {
+    async function fetchData() {
       try {
-        const res = await fetch("/api/beli-package");
-        if (res.ok) {
-          const data = await res.json();
+        const [pkgRes, memberRes] = await Promise.all([
+          fetch("/api/beli-package"),
+          fetch(`/api/member?email=${encodeURIComponent(user.email)}`),
+        ]);
+        if (pkgRes.ok) {
+          const data = await pkgRes.json();
           setPackages(data);
         }
+        if (memberRes.ok) {
+          const memberData = await memberRes.json();
+          setAwardMiles(memberData.award_miles || 0);
+        }
       } catch (error) {
-        console.error("Failed to fetch packages:", error);
+        console.error("Failed to fetch data:", error);
       }
       setHydrated(true);
     }
 
-    fetchPackages();
+    fetchData();
   }, [authHydrated, user, router]);
 
   if (!hydrated || !user) {
@@ -108,12 +113,12 @@ export default function BeliPackagePage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8">
+    <main className="min-h-screen bg-gradient-to-br from-secondary-700 to-secondary-500 px-4 py-8">
       <div className="mx-auto max-w-4xl">
-        <h1 className="mb-2 text-3xl font-bold text-gray-900">
+        <h1 className="mb-2 text-3xl font-bold text-white">
           Beli Award Miles Package
         </h1>
-        <p className="mb-8 text-gray-600">
+        <p className="mb-8 text-white">
           Tingkatkan award miles kamu dengan membeli package yang tersedia
         </p>
 
@@ -131,13 +136,13 @@ export default function BeliPackagePage() {
               key={pkg.id}
               className="flex flex-col rounded-lg bg-white p-6 shadow hover:shadow-lg transition-shadow"
             >
-              <p className="mb-3 text-xs font-semibold text-gray-500">
+              <p className="mb-3 text-md font-semibold text-secondary-500">
                 {pkg.id}
               </p>
-              <p className="mb-2 text-3xl font-bold text-primary">
+              <p className="text-3xl font-bold text-primary">
                 {pkg.jumlah_award_miles.toLocaleString("id-ID")}
               </p>
-              <p className="mb-4 text-sm text-gray-600">award miles</p>
+              <p className="mb-4 text-md text-gray-600">Award Miles</p>
 
               <p className="mb-6 text-lg font-semibold text-gray-900">
                 {formatRupiah(pkg.harga_paket)}
