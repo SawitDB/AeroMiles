@@ -106,12 +106,17 @@ export async function getAuthenticatedUserByEmail(email: string): Promise<Authen
 }
 
 export async function loginUser(email: string, password: string): Promise<User> {
-  const normalizedEmail = email.trim().toLowerCase()
-  const result = await query(
-    'SELECT * FROM verifikasi_login($1, $2)',
-    [normalizedEmail, password],
-  )
-  return mapRowToUser(result.rows[0] as DbUserRow)
+  const authUser = await getAuthenticatedUserByEmail(email)
+
+  if (!authUser) {
+    throw new Error('Email tidak ditemukan')
+  }
+
+  if (authUser.password !== password) {
+    throw new Error('Password salah')
+  }
+
+  return authUser.user
 }
 
 export async function getPublicUserByEmail(email: string): Promise<User | null> {
