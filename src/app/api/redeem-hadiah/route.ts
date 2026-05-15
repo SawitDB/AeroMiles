@@ -79,11 +79,6 @@ export async function POST(req: Request) {
         [email_member, kode_hadiah]
       );
 
-      await client.query(
-        'UPDATE MEMBER SET award_miles = award_miles - $1 WHERE email = $2',
-        [hadiah.miles, email_member]
-      );
-
       await client.query('COMMIT');
 
       return NextResponse.json({ success: true, message: `Redeem berhasil! ${hadiah.miles} miles telah dipotong.` });
