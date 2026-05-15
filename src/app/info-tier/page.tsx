@@ -11,34 +11,30 @@ interface Tier {
   minimal_tier_miles: number;
 }
 
-interface MemberData {
-  email: string;
-  nomor_member: string;
-  tanggal_bergabung: string;
-  id_tier: string;
-}
-
 const TIER_COLORS: Record<string, string> = {
   BLUE: "#60a5fa",
-  SILVER: "#94a3b8",
+  SILV: "#94a3b8",
   GOLD: "#f59e0b",
-  PLATINUM: "#8b5cf6",
+  PLAT: "#8b5cf6",
 };
 
 const TIER_BENEFITS: Record<string, string> = {
   BLUE: "Akses program miles dasar, penawaran mitra terpilih",
-  SILVER: "Priority check-in, bonus miles 25%, diskon lounge",
+  SILV: "Priority check-in, bonus miles 25%, diskon lounge",
   GOLD: "Akses lounge gratis, bonus miles 50%, upgrade prioritas",
-  PLATINUM: "Layanan concierge 24/7, bonus miles 100%, upgrade gratis",
+  PLAT: "Layanan concierge 24/7, bonus miles 100%, upgrade gratis",
 };
-
-const TIER_ORDER = ["BLUE", "SILVER", "GOLD", "PLATINUM"];
 
 export default function InfoTierPage() {
   const router = useRouter();
   const { user, isHydrated: authHydrated } = useAuth();
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [memberTier, setMemberTier] = useState<string>('BLUE');
+  const [totalMiles, setTotalMiles] = useState(0);
+  const [nextTier, setNextTier] = useState<Tier | null>(null);
+  const [isHighestTier, setIsHighestTier] = useState(false);
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [milesNeeded, setMilesNeeded] = useState(0);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -54,16 +50,17 @@ export default function InfoTierPage() {
 
     (async () => {
       try {
-        const [tierRes, memberRes] = await Promise.all([
-          fetch("/api/tier"),
-          fetch(`/api/member?email=${encodeURIComponent(user.email)}`),
-        ]);
-        const tiersData: Tier[] = await tierRes.json();
-        if (memberRes.ok) {
-          const memberData: MemberData = await memberRes.json();
-          setMemberTier(memberData.id_tier);
+        const res = await fetch(`/api/info-tier?email=${encodeURIComponent(user.email)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setTiers(data.tiers);
+          setMemberTier(data.member.id_tier);
+          setTotalMiles(data.member.total_miles);
+          setNextTier(data.next_tier);
+          setIsHighestTier(data.is_highest_tier);
+          setProgressPercent(data.progress_percent);
+          setMilesNeeded(data.miles_needed);
         }
-        setTiers(tiersData);
       } catch (err) {
         console.error("Failed to fetch data:", err);
       }
@@ -75,61 +72,25 @@ export default function InfoTierPage() {
     return null;
   }
 
-  const currentTierIndex = TIER_ORDER.indexOf(memberTier);
-  const nextTierIndex = currentTierIndex + 1;
-  const isHighestTier = currentTierIndex === TIER_ORDER.length - 1;
-  const nextTier = isHighestTier
-    ? null
-    : tiers.find((t) => t.id_tier === TIER_ORDER[nextTierIndex]);
-
-  const milesNeeded = isHighestTier
-    ? 0
-    : Math.max(0, (nextTier?.minimal_tier_miles || 0) - (user.totalMiles || 0));
-
-  const progressPercent = isHighestTier
-    ? 100
-    : Math.min(
-        100,
-        ((user.totalMiles || 0) / (nextTier?.minimal_tier_miles || 1)) * 100
-      );
-
-  const currentTier = tiers.find((t) => t.id_tier === memberTier);
-
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8">
+    <main className="min-h-screen bg-gradient-to-br from-secondary-700 to-secondary-500 px-4 py-8">
       <div className="mx-auto max-w-3xl">
-        <h1 className="mb-2 text-3xl font-bold text-gray-900">Informasi Tier</h1>
-        <p className="mb-8 text-gray-600">
+        <h1 className="mb-2 text-3xl font-bold text-white">Informasi Tier</h1>
+        <p className="mb-8 text-white">
           Ketahui tier membership kamu dan dapatkan benefit eksklusif
         </p>
 
         {/* CARD 1: Progress Bar Card */}
-        <div className="mb-6 rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-4 text-xl font-bold text-gray-900">Progres Tier Kamu</h2>
+        <div className="mb-6 rounded-lg bg-white/10 px-6 py-4 p-6 ">
+          <h2 className="mb-4 text-xl font-bold text-white">Progres Tier Kamu</h2>
 
-          <div className="mb-4 flex items-center gap-3">
-            <div
-              className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-sm"
-              style={{ backgroundColor: TIER_COLORS[memberTier ?? 'BLUE'] }}
-            >
-
-              {(memberTier ?? 'BLUE').charAt(0)}
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Tier Saat Ini</p>
-              <p className="text-lg font-bold text-gray-900">
-                {currentTier?.nama ?? memberTier ?? 'BLUE'}
-              </p>
-            </div>
-          </div>
-
-          <p className="mb-4 text-sm text-gray-700">
-            Total Miles: <span className="font-bold">{user.totalMiles || 0}</span>
+          <p className="mb-4 text-sm text-white text-opacity-80">
+            Total Miles: <span className="font-bold">{totalMiles.toLocaleString("id-ID")}</span>
           </p>
 
           {/* Progress bar */}
           <div className="mb-4">
-            <div className="h-3 w-full rounded-full bg-gray-200">
+            <div className="h-3 w-full rounded-full bg-gray-200 ">
               <div
                 className="h-3 rounded-full transition-all duration-300"
                 style={{
@@ -141,7 +102,7 @@ export default function InfoTierPage() {
           </div>
 
           {/* Progress text */}
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-white ">
             {isHighestTier ? (
               <span className="text-green-600 font-semibold">
                 🎉 Selamat! Kamu sudah berada di tier tertinggi
@@ -160,9 +121,9 @@ export default function InfoTierPage() {
           {tiers.map((tier) => {
             const isCurrentTier = tier.id_tier === (memberTier ?? 'BLUE');
             const borderClass = isCurrentTier
-              ? "border-2"
-              : "border border-gray-200";
-            const bgClass = isCurrentTier ? "bg-blue-50" : "bg-white";
+              ? "shadow-xl shadow-amber-400 border-4 border-solid border-amber-4000"
+              : "border-4 border-solid border-secondary-300";
+            const bgClass = isCurrentTier ? "bg-amber-100" : "bg-white";
 
             return (
               <div
@@ -187,7 +148,7 @@ export default function InfoTierPage() {
                     </div>
                   </div>
                   {isCurrentTier && (
-                    <span className="inline-block rounded-full px-3 py-1 text-xs font-semibold text-gray-900 bg-yellow-100">
+                    <span className="inline-block rounded-full px-3 py-1 text-xs font-semibold text-white bg-amber-900">
                       Tier Kamu Saat Ini ✓
                     </span>
                   )}

@@ -2,10 +2,33 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 
-// READ: Mengambil semua data hadiah
-export async function GET() {
+// READ: Mengambil data hadiah (opsional filter available=true)
+export async function GET(req: Request) {
   try {
-    const res = await pool.query('SELECT * FROM HADIAH ORDER BY kode_hadiah ASC');
+    const { searchParams } = new URL(req.url);
+    const availableOnly = searchParams.get('available') === 'true';
+
+    let query = `
+      SELECT
+        h.kode_hadiah, h.nama, h.miles, h.deskripsi,
+        h.valid_start_date, h.program_end, h.id_penyedia,
+        CASE
+          WHEN mk.id_penyedia IS NOT NULL THEN mk.kode_maskapai || ' - ' || mk.nama_maskapai
+          WHEN mi.id_penyedia IS NOT NULL THEN mi.nama_mitra || ' (Mitra)'
+          ELSE 'Penyedia #' || h.id_penyedia
+        END as nama_penyedia
+      FROM HADIAH h
+      LEFT JOIN MASKAPAI mk ON h.id_penyedia = mk.id_penyedia
+      LEFT JOIN MITRA mi ON h.id_penyedia = mi.id_penyedia
+    `;
+
+    if (availableOnly) {
+      query += ` WHERE h.program_end >= CURRENT_DATE ORDER BY h.kode_hadiah ASC`;
+    } else {
+      query += ` ORDER BY h.kode_hadiah ASC`;
+    }
+
+    const res = await pool.query(query);
     return NextResponse.json(res.rows);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
