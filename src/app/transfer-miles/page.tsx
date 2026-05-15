@@ -45,6 +45,7 @@ export default function Page() {
   const { user, isHydrated } = useAuth()
   const [transfers, setTransfers] = useState<TransferRecord[]>([])
   const [memberByEmail, setMemberByEmail] = useState<Record<string, MemberLookup>>({})
+  const [memberData, setMemberData] = useState<{ award_miles?: number; total_miles?: number } | null>(null)
   const [search, setSearch] = useState('')
   const [modalMode, setModalMode] = useState<ModalMode>(null)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -126,31 +127,48 @@ export default function Page() {
 
     loadMembers().catch((error) => console.error(error))
 
+    // also fetch current member data (award/total miles) from server
+    const loadSelf = async () => {
+      try {
+        const res = await fetch(`/api/member?email=${encodeURIComponent(user.email)}`)
+        if (!res.ok) return
+        const data = await res.json()
+        setMemberData({ award_miles: data.award_miles, total_miles: data.total_miles })
+        // ensure self is in memberByEmail map
+        setMemberByEmail((prev) => ({
+          ...prev,
+          [user.email]: {
+            email: user.email,
+            salutation: user.salutation,
+            first_mid_name: user.firstName,
+            last_name: user.lastName,
+          },
+        }))
+      } catch (err) {
+        console.error('Failed to load member data', err)
+      }
+    }
+
+    loadSelf()
+
     return () => {
       cancelled = true
     }
   }, [transfers, user])
 
-  // Dynamic balance calculation
+  // Dynamic balance calculation: use server award_miles as base, then apply local transfers
   const sessionMiles = useMemo(() => {
     if (!user) return 0
-    let balance = 5000
+    const base = memberData?.award_miles ?? 0
 
-    const claimsRaw = localStorage.getItem('aeromiles_claim')
-    const claims: any[] = claimsRaw ? JSON.parse(claimsRaw) : []
-    claims.forEach(c => {
-      if (c.email_member === user.email && c.status_penerimaan === 'Disetujui') {
-        balance += c.maskapai === 'GA' ? 1000 : 500
-      }
-    })
+    const adjusted = transfers.reduce((acc, t) => {
+      if (t.email_member_1 === user.email) return acc - t.jumlah
+      if (t.email_member_2 === user.email) return acc + t.jumlah
+      return acc
+    }, base)
 
-    transfers.forEach(t => {
-      if (t.email_member_1 === user.email) balance -= t.jumlah
-      if (t.email_member_2 === user.email) balance += t.jumlah
-    })
-
-    return balance
-  }, [user, transfers])
+    return adjusted
+  }, [user, transfers, memberData])
 
   const filteredTransfers = useMemo(() => {
     if (!user) return []
