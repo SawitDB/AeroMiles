@@ -11,7 +11,22 @@ export async function GET(req: Request) {
     }
 
     const res = await pool.query(
-      'SELECT email, nomor_member, tanggal_bergabung, id_tier, award_miles, total_miles FROM MEMBER WHERE email = $1',
+      `
+        SELECT
+          p.email,
+          p.salutation,
+          p.first_mid_name,
+          p.last_name,
+          m.nomor_member,
+          m.tanggal_bergabung,
+          m.id_tier,
+          m.award_miles,
+          m.total_miles
+        FROM MEMBER m
+        INNER JOIN PENGGUNA p ON p.email = m.email
+        WHERE lower(m.email) = lower($1)
+        LIMIT 1
+      `,
       [email]
     );
 
