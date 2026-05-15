@@ -6,6 +6,17 @@ import { useAuth } from '@/components/AuthProvider'
 /* ─── Types ──────────────────────────────────────────────── */
 type ClaimStatus = 'Menunggu' | 'Disetujui' | 'Ditolak'
 
+type Maskapai = {
+  kode_maskapai: string
+  nama_maskapai: string
+}
+
+type Bandara = {
+  iata_code: string
+  nama: string
+  kota: string
+}
+
 type ClaimRequest = {
   id: number
   email_member: string
@@ -36,13 +47,6 @@ const EMPTY_FORM: any = {
 }
 
 /* ─── Helpers ─────────────────────────────────────────────── */
-function loadClaims(): ClaimRequest[] {
-  if (typeof window === 'undefined') return []
-  try { return JSON.parse(localStorage.getItem('aeromiles_claim') || '[]') } catch { return [] }
-}
-function saveClaims(data: ClaimRequest[]) {
-  localStorage.setItem('aeromiles_claim', JSON.stringify(data))
-}
 function formatDate(value: string) {
   if (!value) return '-'
   try { return new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) } catch { return value }
@@ -56,6 +60,8 @@ function formatDateTime(value: string) {
 export default function KlaimMilesPage() {
   const { user, isHydrated } = useAuth()
   const [claims, setClaims] = useState<ClaimRequest[]>([])
+  const [airlines, setAirlines] = useState<Maskapai[]>([])
+  const [airports, setAirports] = useState<Bandara[]>([])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'Semua' | ClaimStatus>('Semua')
 
@@ -66,22 +72,50 @@ export default function KlaimMilesPage() {
   const [deleteTarget, setDeleteTarget] = useState<ClaimRequest | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
+  const fetchClaims = async () => {
+    if (!user) return
+    try {
+      const res = await fetch(`/api/claim-missing-miles?email=${encodeURIComponent(user.email)}`)
+      if (res.ok) {
+        const data = await res.json()
+        setClaims(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch claims:', error)
+    }
+  }
+
+  const fetchMasterData = async () => {
+    try {
+      const [resAirlines, resAirports] = await Promise.all([
+        fetch('/api/maskapai'),
+        fetch('/api/bandara')
+      ])
+      if (resAirlines.ok) setAirlines(await resAirlines.json())
+      if (resAirports.ok) setAirports(await resAirports.json())
+    } catch (error) {
+      console.error('Failed to fetch master data:', error)
+    }
+  }
+
   useEffect(() => {
-    setClaims(loadClaims())
-  }, [])
+    if (isHydrated && user) {
+      fetchClaims()
+      fetchMasterData()
+    }
+  }, [isHydrated, user])
 
   const filtered = useMemo(() => {
     if (!user) return []
     return claims.filter(c => {
-      if (c.email_member !== user.email) return false
       const q = search.toLowerCase()
-      const matchSearch = !q || [c.maskapai, c.flight_number, c.nomor_tiket, c.pnr].some(v => v.toLowerCase().includes(q))
+      const matchSearch = !q || [c.maskapai, c.flight_number, c.nomor_tiket, c.pnr].some(v => v?.toLowerCase().includes(q))
       const matchStatus = statusFilter === 'Semua' || c.status_penerimaan === statusFilter
       return matchSearch && matchStatus
     })
   }, [claims, user, search, statusFilter])
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.maskapai || !form.bandara_asal || !form.bandara_tujuan || !form.tanggal_penerbangan || !form.flight_number || !form.nomor_tiket || !form.pnr) {
       setFormError('Semua field wajib diisi.')
       return
@@ -89,34 +123,58 @@ export default function KlaimMilesPage() {
     if (form.bandara_asal === form.bandara_tujuan) { setFormError('Asal dan tujuan tidak boleh sama.'); return }
 
     setIsLoading(true)
+    setFormError('')
     try {
-      const now = new Date().toISOString()
-      if (modalMode === 'add') {
-        const newC: ClaimRequest = {
-          id: Date.now(),
-          email_member: user?.email || '',
+      const method = modalMode === 'add' ? 'POST' : 'PUT'
+      const res = await fetch('/api/claim-missing-miles', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           ...form,
-          status_penerimaan: 'Menunggu',
-          timestamp: now,
-        }
-        const next = [...claims, newC]
-        setClaims(next); saveClaims(next)
-      } else if (modalMode === 'edit' && editTarget) {
-        const next = claims.map(c => c.id === editTarget.id ? { ...c, ...form } : c)
-        setClaims(next); saveClaims(next)
+          email_member: user?.email,
+          id: editTarget?.id
+        }),
+      })
+
+      const result = await res.json()
+      if (!res.ok) {
+        setFormError(result.error || 'Terjadi kesalahan saat menyimpan klaim.')
+        return
       }
-      setModalMode(null); setEditTarget(null)
+
+      await fetchClaims()
+      setModalMode(null)
+      setEditTarget(null)
+      setForm(EMPTY_FORM)
+    } catch (err) {
+      console.error(err)
+      setFormError('Gagal menyimpan klaim.')
     } finally {
       setIsLoading(false)
     }
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!deleteTarget) return
     setIsLoading(true)
     try {
-      const next = claims.filter(c => c.id !== deleteTarget.id)
-      setClaims(next); saveClaims(next); setDeleteTarget(null)
+      const res = await fetch('/api/claim-missing-miles', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: deleteTarget.id }),
+      })
+
+      if (!res.ok) {
+        const result = await res.json()
+        alert(result.error || 'Gagal menghapus klaim.')
+        return
+      }
+
+      await fetchClaims()
+      setDeleteTarget(null)
+    } catch (err) {
+      console.error(err)
+      alert('Gagal menghapus klaim.')
     } finally {
       setIsLoading(false)
     }
@@ -126,10 +184,10 @@ export default function KlaimMilesPage() {
   if (isHydrated && (!user || user.role !== 'member')) return <div className="p-6 text-white">Akses Ditolak. Khusus Member.</div>
 
   const stats = [
-    { label: 'Total Klaim', value: filtered.length, accent: 'from-blue-500 to-cyan-500' },
-    { label: 'Menunggu', value: filtered.filter(c => c.status_penerimaan === 'Menunggu').length, accent: 'from-amber-500 to-orange-500' },
-    { label: 'Disetujui', value: filtered.filter(c => c.status_penerimaan === 'Disetujui').length, accent: 'from-emerald-500 to-green-500' },
-    { label: 'Ditolak', value: filtered.filter(c => c.status_penerimaan === 'Ditolak').length, accent: 'from-rose-500 to-red-500' },
+    { label: 'Total Klaim', value: claims.length, accent: 'from-blue-500 to-cyan-500' },
+    { label: 'Menunggu', value: claims.filter(c => c.status_penerimaan === 'Menunggu').length, accent: 'from-amber-500 to-orange-500' },
+    { label: 'Disetujui', value: claims.filter(c => c.status_penerimaan === 'Disetujui').length, accent: 'from-emerald-500 to-green-500' },
+    { label: 'Ditolak', value: claims.filter(c => c.status_penerimaan === 'Ditolak').length, accent: 'from-rose-500 to-red-500' },
   ]
 
   return (
@@ -138,7 +196,7 @@ export default function KlaimMilesPage() {
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white">Klaim Miles</h1>
-            <p className="mt-1 text-sm text-white/70">Ajukan dan pantau klaim missing miles Anda (Dummy Data)</p>
+            <p className="mt-1 text-sm text-white/70">Ajukan dan pantau klaim missing miles Anda</p>
           </div>
           <button onClick={() => { setForm(EMPTY_FORM); setModalMode('add'); setFormError('') }}
             className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg hover:bg-blue-700">
@@ -225,10 +283,47 @@ export default function KlaimMilesPage() {
           <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl">
             <h2 className="text-xl font-bold text-slate-800 mb-4">{modalMode === 'add' ? 'Ajukan Klaim' : 'Edit Klaim'}</h2>
             <div className="grid gap-4 md:grid-cols-2">
-              <input value={form.maskapai} onChange={e => setForm({...form, maskapai: e.target.value})} placeholder="Kode Maskapai (cth: GA)" className="rounded-xl border p-2.5 text-sm" />
+              <select 
+                value={form.maskapai} 
+                onChange={e => setForm({...form, maskapai: e.target.value})} 
+                className="rounded-xl border p-2.5 text-sm"
+              >
+                <option value="">Pilih Maskapai</option>
+                {airlines.map(a => (
+                  <option key={a.kode_maskapai} value={a.kode_maskapai}>
+                    {a.kode_maskapai} - {a.nama_maskapai}
+                  </option>
+                ))}
+              </select>
+
               <input value={form.flight_number} onChange={e => setForm({...form, flight_number: e.target.value})} placeholder="Flight Number (cth: GA-123)" className="rounded-xl border p-2.5 text-sm" />
-              <input value={form.bandara_asal} onChange={e => setForm({...form, bandara_asal: e.target.value})} placeholder="Bandara Asal (cth: CGK)" className="rounded-xl border p-2.5 text-sm" />
-              <input value={form.bandara_tujuan} onChange={e => setForm({...form, bandara_tujuan: e.target.value})} placeholder="Bandara Tujuan (cth: DPS)" className="rounded-xl border p-2.5 text-sm" />
+              
+              <select 
+                value={form.bandara_asal} 
+                onChange={e => setForm({...form, bandara_asal: e.target.value})} 
+                className="rounded-xl border p-2.5 text-sm"
+              >
+                <option value="">Pilih Bandara Asal</option>
+                {airports.map(a => (
+                  <option key={a.iata_code} value={a.iata_code}>
+                    {a.iata_code} - {a.nama}
+                  </option>
+                ))}
+              </select>
+
+              <select 
+                value={form.bandara_tujuan} 
+                onChange={e => setForm({...form, bandara_tujuan: e.target.value})} 
+                className="rounded-xl border p-2.5 text-sm"
+              >
+                <option value="">Pilih Bandara Tujuan</option>
+                {airports.map(a => (
+                  <option key={a.iata_code} value={a.iata_code}>
+                    {a.iata_code} - {a.nama}
+                  </option>
+                ))}
+              </select>
+
               <input type="date" value={form.tanggal_penerbangan} onChange={e => setForm({...form, tanggal_penerbangan: e.target.value})} className="rounded-xl border p-2.5 text-sm" />
               <input value={form.nomor_tiket} onChange={e => setForm({...form, nomor_tiket: e.target.value})} placeholder="Nomor Tiket" className="rounded-xl border p-2.5 text-sm" />
               <input value={form.pnr} onChange={e => setForm({...form, pnr: e.target.value})} placeholder="PNR" className="rounded-xl border p-2.5 text-sm" />
