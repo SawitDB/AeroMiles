@@ -1,26 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
-import { getFromStorage, saveToStorage } from "@/lib/storage";
 import ConfirmModal from "@/components/ConfirmModal";
 
 interface Transaction {
-  id: string;
   type: "Transfer" | "Redeem" | "Pembelian" | "Klaim";
   email_member: string;
+  nomor_member: string;
   jumlah_miles: number;
   timestamp: string;
-  source_key: string;
-  source_index: number;
+  related: string;
+  transfer_role?: "sender" | "receiver";
+  delete_key: any;
 }
 
-interface Member {
+interface TopMember {
   email: string;
-  nomor_member?: string;
+  nomor_member: string;
   total_miles: number;
-  role: string;
+  jumlah_transaksi: number;
 }
 
 type Tab = "riwayat" | "topMember";
@@ -32,29 +32,31 @@ export default function LaporanTransaksiPage() {
   const [hydrated, setHydrated] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("riwayat");
 
-  // Stats
   const [totalMilesBeredar, setTotalMilesBeredar] = useState(0);
   const [totalRedeemBulanIni, setTotalRedeemBulanIni] = useState(0);
   const [totalKlaimDisetujui, setTotalKlaimDisetujui] = useState(0);
 
-  // Transactions
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [session, setSession] = useState<{ email: string; role: string } | null>(null);
+  const [topMembers, setTopMembers] = useState<TopMember[]>([]);
 
-  // Filters
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Modal
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(
-    null
-  );
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // Initialize
+  const [notification, setNotification] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  const showNotification = useCallback((type: "success" | "error", message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 4000);
+  }, []);
+
   useEffect(() => {
     if (!authHydrated) return
     if (!user) {
@@ -66,102 +68,41 @@ export default function LaporanTransaksiPage() {
       return;
     }
 
-    // Load all data
-    const users = getFromStorage<Member>("aeromiles_users");
-    const transfers = getFromStorage("aeromiles_transfer");
-    const redeems = getFromStorage("aeromiles_redeem");
-    const memberAmps = getFromStorage("aeromiles_member_amp");
-    const claims = getFromStorage("aeromiles_claim");
+    (async () => {
+      try {
+        const [statsRes, txnRes, topRes] = await Promise.all([
+          fetch("/api/laporan-transaksi?action=stats"),
+          fetch("/api/laporan-transaksi?action=transactions"),
+          fetch("/api/laporan-transaksi?action=top-member"),
+        ]);
 
-    setMembers(users);
+        if (statsRes.ok) {
+          const stats = await statsRes.json();
+          setTotalMilesBeredar(stats.total_miles_beredar);
+          setTotalRedeemBulanIni(stats.total_redeem_bulan_ini);
+          setTotalKlaimDisetujui(stats.total_klaim_disetujui);
+        }
 
-    // Build unified transaction list
-    const txns: Transaction[] = [];
+        if (txnRes.ok) {
+          const data = await txnRes.json();
+          setAllTransactions(data);
+        }
 
-    // Transfer transactions
-    transfers.forEach((t: any, idx: number) => {
-      txns.push({
-        id: `transfer-${idx}`,
-        type: "Transfer",
-        email_member: t.email_member_1,
-        jumlah_miles: -(t.jumlah || 0),
-        timestamp: t.timestamp,
-        source_key: "aeromiles_transfer",
-        source_index: idx,
-      });
-    });
-
-    // Redeem transactions
-    redeems.forEach((r: any, idx: number) => {
-      txns.push({
-        id: `redeem-${idx}`,
-        type: "Redeem",
-        email_member: r.email_member,
-        jumlah_miles: -(r.miles_used || 0),
-        timestamp: r.timestamp,
-        source_key: "aeromiles_redeem",
-        source_index: idx,
-      });
-    });
-
-    // Purchase transactions
-    memberAmps.forEach((m: any, idx: number) => {
-      txns.push({
-        id: `pembelian-${idx}`,
-        type: "Pembelian",
-        email_member: m.email_member,
-        jumlah_miles: m.jumlah_award_miles || 0,
-        timestamp: m.timestamp,
-        source_key: "aeromiles_member_amp",
-        source_index: idx,
-      });
-    });
-
-    // Claim transactions (only approved)
-    claims.forEach((c: any, idx: number) => {
-      if (c.status_penerimaan === "Disetujui") {
-        txns.push({
-          id: `klaim-${idx}`,
-          type: "Klaim",
-          email_member: c.email_member,
-          jumlah_miles: c.jumlah_miles || 0,
-          timestamp: c.timestamp,
-          source_key: "aeromiles_claim",
-          source_index: idx,
-        });
+        if (topRes.ok) {
+          const data = await topRes.json();
+          setTopMembers(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch data:", err);
       }
-    });
-
-    setAllTransactions(txns);
-
-    // Calculate stats
-    const totalMiles = users
-      .filter((u) => u.role === "member")
-      .reduce((sum, u) => sum + (u.total_miles || 0), 0);
-    setTotalMilesBeredar(totalMiles);
-
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const redeemThisMonth = redeems.filter((r: any) => {
-      const rDate = new Date(r.timestamp);
-      return rDate.getMonth() === currentMonth && rDate.getFullYear() === currentYear;
-    }).length;
-    setTotalRedeemBulanIni(redeemThisMonth);
-
-    const approvedClaims = claims.filter(
-      (c: any) => c.status_penerimaan === "Disetujui"
-    ).length;
-    setTotalKlaimDisetujui(approvedClaims);
-
-    setHydrated(true);
+      setHydrated(true);
+    })();
   }, [authHydrated, user, router]);
 
-  if (!hydrated || !session) {
+  if (!hydrated || !user) {
     return null;
   }
 
-  // Filter transactions
   const filteredTransactions = allTransactions.filter((txn) => {
     if (typeFilter !== "all" && txn.type !== typeFilter) return false;
 
@@ -181,11 +122,10 @@ export default function LaporanTransaksiPage() {
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      const member = members.find((m) => m.email === txn.email_member);
       const searchText =
         txn.email_member.toLowerCase() +
         " " +
-        (member?.nomor_member || "").toLowerCase();
+        (txn.nomor_member || "").toLowerCase();
       if (!searchText.includes(query)) return false;
     }
 
@@ -194,32 +134,45 @@ export default function LaporanTransaksiPage() {
 
   const handleDeleteClick = (txn: Transaction) => {
     if (txn.type === "Klaim") {
-      alert("❌ Tidak dapat menghapus riwayat Klaim yang sudah disetujui.");
+      showNotification("error", "Tidak dapat menghapus riwayat Klaim yang sudah disetujui.");
       return;
     }
     setSelectedTransaction(txn);
     setShowDeleteModal(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!selectedTransaction) return;
 
-    const sourceKey = selectedTransaction.source_key;
-    const index = selectedTransaction.source_index;
+    try {
+      const res = await fetch("/api/laporan-transaksi", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: selectedTransaction.type,
+          delete_key: selectedTransaction.delete_key,
+        }),
+      });
 
-    // Load, modify, save
-    const data = getFromStorage(sourceKey);
-    data.splice(index, 1);
-    saveToStorage(sourceKey, data);
+      const result = await res.json();
 
-    // Update local state
-    setAllTransactions((prev) =>
-      prev.filter((txn) => txn.id !== selectedTransaction.id)
-    );
+      if (!res.ok) {
+        showNotification("error", `Gagal: ${result.error}`);
+        return;
+      }
 
-    setShowDeleteModal(false);
-    setSelectedTransaction(null);
-    alert("✅ Riwayat transaksi berhasil dihapus.");
+      setAllTransactions((prev) =>
+        selectedTransaction.type === "Transfer"
+          ? prev.filter((t) => JSON.stringify(t.delete_key) !== JSON.stringify(selectedTransaction.delete_key))
+          : prev.filter((t) => t !== selectedTransaction)
+      );
+
+      setShowDeleteModal(false);
+      setSelectedTransaction(null);
+      showNotification("success", "Riwayat transaksi berhasil dihapus.");
+    } catch (error: any) {
+      showNotification("error", `Gagal: ${error.message}`);
+    }
   };
 
   const resetFilters = () => {
@@ -229,23 +182,6 @@ export default function LaporanTransaksiPage() {
     setSearchQuery("");
   };
 
-  // Top member ranking
-  const topMembers = members
-    .filter((m) => m.role === "member")
-    .map((m) => {
-      const memberTxns = allTransactions.filter(
-        (txn) => txn.email_member === m.email
-      );
-      const txnCount = memberTxns.length;
-      return {
-        email: m.email,
-        nomor_member: m.nomor_member || "-",
-        total_miles: m.total_miles || 0,
-        jumlah_transaksi: txnCount,
-      };
-    })
-    .sort((a, b) => b.total_miles - a.total_miles);
-
   const medalMap: Record<number, string> = {
     0: "🥇",
     1: "🥈",
@@ -253,12 +189,12 @@ export default function LaporanTransaksiPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8">
+    <main className="min-h-screen bg-gradient-to-br from-secondary-700 to-secondary-500 text-white px-4 py-8">
       <div className="mx-auto max-w-6xl">
-        <h1 className="mb-2 text-3xl font-bold text-gray-900">
+        <h1 className="mb-2 text-3xl font-bold">
           Laporan & Riwayat Transaksi
         </h1>
-        <p className="mb-8 text-gray-600">
+        <p className="mb-8 ">
           Pantau semua transaksi member dan statistik bisnis
         </p>
 
@@ -286,7 +222,6 @@ export default function LaporanTransaksiPage() {
 
         {/* SECTION 2: Tabs */}
         <div className="rounded-lg bg-white p-6 shadow">
-          {/* Tab Buttons */}
           <div className="mb-6 flex gap-4 border-b">
             <button
               onClick={() => setActiveTab("riwayat")}
@@ -313,8 +248,7 @@ export default function LaporanTransaksiPage() {
           {/* VIEW 1: Riwayat Transaksi */}
           {activeTab === "riwayat" && (
             <div>
-              {/* Filter Bar */}
-              <div className="mb-6 space-y-3 rounded-lg bg-gray-50 p-4 md:flex md:gap-3 md:space-y-0">
+              <div className="mb-6 space-y-3 rounded-lg text-black bg-gray-50 p-4 md:flex md:gap-3 md:space-y-0">
                 <select
                   value={typeFilter}
                   onChange={(e) =>
@@ -361,7 +295,6 @@ export default function LaporanTransaksiPage() {
                 </button>
               </div>
 
-              {/* Table */}
               <div className="overflow-x-auto">
                 {filteredTransactions.length === 0 ? (
                   <p className="text-center text-gray-500 py-8">
@@ -389,64 +322,89 @@ export default function LaporanTransaksiPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredTransactions
-                        .sort(
+                      {(() => {
+                        const sorted = [...filteredTransactions].sort(
                           (a, b) =>
                             new Date(b.timestamp).getTime() -
                             new Date(a.timestamp).getTime()
-                        )
-                        .map((txn) => (
-                          <tr key={txn.id} className="border-b hover:bg-gray-50">
-                            <td className="px-4 py-3">
-                              <span className="inline-block rounded-full px-3 py-1 text-xs font-semibold bg-blue-100 text-blue-800">
-                                {txn.type}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-gray-900">
-                              <p className="text-sm">{txn.email_member}</p>
-                              <p className="text-xs text-gray-500">
-                                {members.find((m) => m.email === txn.email_member)
-                                  ?.nomor_member || "-"}
-                              </p>
-                            </td>
-                            <td className="px-4 py-3 text-right font-semibold">
-                              <span
-                                className={
-                                  txn.jumlah_miles >= 0
-                                    ? "text-green-600"
-                                    : "text-red-600"
-                                }
-                              >
-                                {txn.jumlah_miles >= 0 ? "+" : ""}
-                                {txn.jumlah_miles.toLocaleString("id-ID")}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-gray-600 text-xs">
-                              {new Date(txn.timestamp).toLocaleDateString(
-                                "id-ID",
-                                {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              {txn.type === "Klaim" ? (
-                                <span className="text-gray-400">🔒</span>
-                              ) : (
-                                <button
-                                  onClick={() => handleDeleteClick(txn)}
-                                  className="text-red-600 hover:text-red-800 font-semibold"
+                        );
+                        return sorted.map((txn, idx) => {
+                          const prevTxn = idx > 0 ? sorted[idx - 1] : null;
+                          const nextTxn = idx < sorted.length - 1 ? sorted[idx + 1] : null;
+
+                          const isSecondTransferRow =
+                            txn.type === "Transfer" &&
+                            prevTxn?.type === "Transfer" &&
+                            JSON.stringify(txn.delete_key) === JSON.stringify(prevTxn.delete_key);
+
+                          const isFirstTransferRow =
+                            txn.type === "Transfer" &&
+                            nextTxn?.type === "Transfer" &&
+                            JSON.stringify(txn.delete_key) === JSON.stringify(nextTxn.delete_key);
+
+                          const tipeLabel =
+                            txn.type === "Transfer" && txn.transfer_role === "receiver"
+                              ? "Transfer (Terima)"
+                              : txn.type === "Transfer" && txn.transfer_role === "sender"
+                              ? "Transfer (Kirim)"
+                              : txn.type;
+
+                          return (
+                            <tr key={`${txn.type}-${idx}`} className="border-b hover:bg-gray-50">
+                              <td className="px-4 py-3">
+                                <span className="inline-block rounded-full px-3 py-1 text-xs font-semibold bg-blue-100 text-blue-800">
+                                  {tipeLabel}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-gray-900">
+                                <p className="text-sm">{txn.email_member}</p>
+                                <p className="text-xs text-gray-500">
+                                  {txn.nomor_member || "-"}
+                                </p>
+                              </td>
+                              <td className="px-4 py-3 text-right font-semibold">
+                                <span
+                                  className={
+                                    txn.jumlah_miles >= 0
+                                      ? "text-green-600"
+                                      : "text-red-600"
+                                  }
                                 >
-                                  🗑️
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
+                                  {txn.jumlah_miles >= 0 ? "+" : ""}
+                                  {txn.jumlah_miles.toLocaleString("id-ID")}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-gray-600 text-xs">
+                                {new Date(txn.timestamp).toLocaleDateString(
+                                  "id-ID",
+                                  {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  }
+                                )}
+                              </td>
+                              <td
+                                className="px-4 py-3 text-center align-middle"
+                                rowSpan={isFirstTransferRow ? 2 : undefined}
+                              >
+                                {isSecondTransferRow ? null : txn.type === "Klaim" ? (
+                                  <span className="text-gray-400">🔒</span>
+                                ) : (
+                                  <button
+                                    onClick={() => handleDeleteClick(txn)}
+                                    className="text-red-600 hover:text-red-800 font-semibold"
+                                  >
+                                    🗑️
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
                     </tbody>
                   </table>
                 )}
@@ -456,7 +414,7 @@ export default function LaporanTransaksiPage() {
 
           {/* VIEW 2: Top Member */}
           {activeTab === "topMember" && (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto text-black">
               {topMembers.length === 0 ? (
                 <p className="text-center text-gray-500 py-8">
                   Tidak ada member.
@@ -482,7 +440,7 @@ export default function LaporanTransaksiPage() {
                   <tbody>
                     {topMembers.map((member, idx) => (
                       <tr key={member.email} className="border-b hover:bg-gray-50">
-                        <td className="px-4 py-3 text-center font-bold text-lg">
+                        <td className="px-4 py-3 text-center font-bold text-lg text-black">
                           {medalMap[idx] || idx + 1}
                         </td>
                         <td className="px-4 py-3 text-gray-900">
@@ -494,7 +452,7 @@ export default function LaporanTransaksiPage() {
                         <td className="px-4 py-3 text-right font-bold text-primary">
                           {member.total_miles.toLocaleString("id-ID")}
                         </td>
-                        <td className="px-4 py-3 text-center font-semibold">
+                        <td className="px-4 py-3 text-center font-semibold text-black">
                           {member.jumlah_transaksi}
                         </td>
                       </tr>
@@ -507,7 +465,6 @@ export default function LaporanTransaksiPage() {
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
       <ConfirmModal
         isOpen={showDeleteModal}
         title="Hapus Riwayat Transaksi?"
@@ -520,6 +477,25 @@ export default function LaporanTransaksiPage() {
         confirmLabel="Hapus"
         confirmVariant="danger"
       />
+
+      {notification && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl px-6 py-4 pr-12 shadow-2xl text-white transition-all ${
+            notification.type === "success" ? "bg-green-600" : "bg-red-600"
+          }`}
+        >
+          <span className="text-xl">
+            {notification.type === "success" ? "✅" : "❌"}
+          </span>
+          <p className="font-medium">{notification.message}</p>
+          <button
+            onClick={() => setNotification(null)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/80 hover:text-white text-lg leading-none"
+          >
+            &times;
+          </button>
+        </div>
+      )}
     </main>
   );
 }
