@@ -11,6 +11,13 @@ type TransferRecord = {
   catatan: string | null
 }
 
+type MemberLookup = {
+  email: string
+  salutation: string
+  first_mid_name: string
+  last_name: string
+}
+
 type ModalMode = 'add' | null
 
 const EMPTY_FORM = {
@@ -37,6 +44,7 @@ function formatDateTime(value: string) {
 export default function Page() {
   const { user, isHydrated } = useAuth()
   const [transfers, setTransfers] = useState<TransferRecord[]>([])
+  const [memberByEmail, setMemberByEmail] = useState<Record<string, MemberLookup>>({})
   const [search, setSearch] = useState('')
   const [modalMode, setModalMode] = useState<ModalMode>(null)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -56,6 +64,72 @@ export default function Page() {
   useEffect(() => {
     fetchTransfers()
   }, [])
+
+  useEffect(() => {
+    if (!user?.email || transfers.length === 0) return
+
+    let cancelled = false
+
+    const loadMembers = async () => {
+      const uniqueEmails = Array.from(
+        new Set(
+          transfers
+            .filter((transfer) => transfer.email_member_1 === user.email || transfer.email_member_2 === user.email)
+            .flatMap((transfer) => [transfer.email_member_1, transfer.email_member_2])
+        )
+      )
+
+      const entries = await Promise.all(
+        uniqueEmails.map(async (email) => {
+          if (email === user.email) {
+            return [
+              email,
+              {
+                email,
+                salutation: user.salutation,
+                first_mid_name: user.firstName,
+                last_name: user.lastName,
+              },
+            ] as const
+          }
+
+          const response = await fetch(`/api/member?email=${encodeURIComponent(email)}`)
+          if (!response.ok) {
+            return null
+          }
+
+          const data = await response.json()
+          return [
+            email,
+            {
+              email: data.email,
+              salutation: data.salutation,
+              first_mid_name: data.first_mid_name,
+              last_name: data.last_name,
+            },
+          ] as const
+        })
+      )
+
+      if (cancelled) return
+
+      const nextMap: Record<string, MemberLookup> = {}
+      entries.forEach((entry) => {
+        if (entry) {
+          const [email, member] = entry
+          nextMap[email] = member
+        }
+      })
+
+      setMemberByEmail(nextMap)
+    }
+
+    loadMembers().catch((error) => console.error(error))
+
+    return () => {
+      cancelled = true
+    }
+  }, [transfers, user])
 
   // Dynamic balance calculation
   const sessionMiles = useMemo(() => {
@@ -90,6 +164,23 @@ export default function Page() {
   }, [transfers, user, search])
 
   const getType = (t: TransferRecord) => (t.email_member_1 === user?.email ? 'Kirim' : 'Terima')
+
+  const getMemberLabel = (email: string) => {
+    const member = memberByEmail[email]
+    if (!member) return email
+
+    return `${member.salutation} ${member.first_mid_name} ${member.last_name}`.replace(/\s+/g, ' ').trim()
+  }
+
+  const getMemberEmailLine = (email: string) => {
+    const member = memberByEmail[email]
+    return member?.email || email
+  }
+
+  const getSignedAmount = (transfer: TransferRecord) => {
+    const sign = transfer.email_member_1 === user?.email ? '-' : '+'
+    return `${sign}${transfer.jumlah.toLocaleString('id-ID')} miles`
+  }
 
   async function handleSave() {
     if (!form.email_member_2 || !form.jumlah) {
@@ -219,8 +310,7 @@ export default function Page() {
               <thead>
                 <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <th className="px-5 py-4">Tipe</th>
-                  <th className="px-5 py-4">Pengirim</th>
-                  <th className="px-5 py-4">Penerima</th>
+                  <th className="px-5 py-4">Member</th>
                   <th className="px-5 py-4">Jumlah</th>
                   <th className="px-5 py-4">Catatan</th>
                   <th className="px-5 py-4">Waktu</th>
@@ -229,23 +319,30 @@ export default function Page() {
               <tbody>
                 {filteredTransfers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-14 text-center text-slate-400">Belum ada transfer miles.</td>
+                    <td colSpan={5} className="py-14 text-center text-slate-400">Belum ada transfer miles.</td>
                   </tr>
                 ) : (
-                  filteredTransfers.map((t, idx) => (
-                    <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/70">
-                      <td className="px-5 py-4">
-                        <span className={getType(t) === 'Kirim' ? 'font-bold text-red-500' : 'font-bold text-green-500'}>
-                          {getType(t)}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 text-slate-700">{t.email_member_1}</td>
-                      <td className="px-5 py-4 text-slate-700">{t.email_member_2}</td>
-                      <td className="px-5 py-4 font-semibold text-slate-800">{t.jumlah.toLocaleString('id-ID')} miles</td>
-                      <td className="px-5 py-4 text-slate-500">{t.catatan || '-'}</td>
-                      <td className="px-5 py-4 text-slate-500">{formatDateTime(t.timestamp)}</td>
-                    </tr>
-                  ))
+                  filteredTransfers.map((t, idx) => {
+                    const otherEmail = t.email_member_1 === user?.email ? t.email_member_2 : t.email_member_1
+                    return (
+                      <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/70">
+                        <td className="px-5 py-4">
+                          <span className={getType(t) === 'Kirim' ? 'font-bold text-red-500' : 'font-bold text-green-500'}>
+                            {getType(t)}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="text-sm font-semibold text-slate-800">{getMemberLabel(otherEmail)}</div>
+                          <div className="text-xs text-slate-500">{getMemberEmailLine(otherEmail)}</div>
+                        </td>
+                        <td className={`px-5 py-4 font-semibold ${t.email_member_1 === user?.email ? 'text-rose-600' : 'text-emerald-600'}`}>
+                          {getSignedAmount(t)}
+                        </td>
+                        <td className="px-5 py-4 text-slate-500">{t.catatan || '-'}</td>
+                        <td className="px-5 py-4 text-slate-500">{formatDateTime(t.timestamp)}</td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
