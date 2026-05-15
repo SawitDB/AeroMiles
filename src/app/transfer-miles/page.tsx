@@ -11,6 +11,14 @@ type TransferRecord = {
   catatan: string | null
 }
 
+type ModalMode = 'add' | null
+
+const EMPTY_FORM = {
+  email_member_2: '',
+  jumlah: '',
+  catatan: '',
+}
+
 function formatDateTime(value: string) {
   if (!value) return '-'
   try {
@@ -29,14 +37,13 @@ function formatDateTime(value: string) {
 export default function Page() {
   const { user, isHydrated } = useAuth()
   const [transfers, setTransfers] = useState<TransferRecord[]>([])
-  const [recipientEmail, setRecipientEmail] = useState('')
-  const [jumlah, setJumlah] = useState('')
-  const [catatan, setCatatan] = useState('')
+  const [search, setSearch] = useState('')
+  const [modalMode, setModalMode] = useState<ModalMode>(null)
+  const [form, setForm] = useState(EMPTY_FORM)
   const [formError, setFormError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   const fetchTransfers = () => {
-    if (!user?.email) return
     try {
       const raw = localStorage.getItem('aeromiles_transfer')
       const all: TransferRecord[] = raw ? JSON.parse(raw) : []
@@ -47,25 +54,22 @@ export default function Page() {
   }
 
   useEffect(() => {
-    if (!isHydrated || !user?.email) return
     fetchTransfers()
-  }, [isHydrated, user?.email])
+  }, [])
 
-  // Dynamic balance calculation for dummy data
+  // Dynamic balance calculation
   const sessionMiles = useMemo(() => {
     if (!user) return 0
-    let balance = 5000 // Base miles
+    let balance = 5000
 
-    // Add miles from approved claims
     const claimsRaw = localStorage.getItem('aeromiles_claim')
     const claims: any[] = claimsRaw ? JSON.parse(claimsRaw) : []
     claims.forEach(c => {
       if (c.email_member === user.email && c.status_penerimaan === 'Disetujui') {
-        balance += (c.maskapai === 'GA' ? 1000 : 500)
+        balance += c.maskapai === 'GA' ? 1000 : 500
       }
     })
 
-    // Adjust for transfers
     transfers.forEach(t => {
       if (t.email_member_1 === user.email) balance -= t.jumlah
       if (t.email_member_2 === user.email) balance += t.jumlah
@@ -76,20 +80,75 @@ export default function Page() {
 
   const filteredTransfers = useMemo(() => {
     if (!user) return []
-    return transfers
-      .filter(t => t.email_member_1 === user.email || t.email_member_2 === user.email)
+    const userTransfers = transfers.filter(
+      t => t.email_member_1 === user.email || t.email_member_2 === user.email
+    )
+    const q = search.toLowerCase()
+    return userTransfers
+      .filter(t => !q || [t.email_member_1, t.email_member_2].some(v => v.toLowerCase().includes(q)))
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-  }, [transfers, user])
+  }, [transfers, user, search])
 
-  const getType = (t: TransferRecord) => {
-    if (t.email_member_1 === user?.email) return 'Kirim'
-    return 'Terima'
+  const getType = (t: TransferRecord) => (t.email_member_1 === user?.email ? 'Kirim' : 'Terima')
+
+  async function handleSave() {
+    if (!form.email_member_2 || !form.jumlah) {
+      setFormError('Semua field wajib diisi.')
+      return
+    }
+
+    if (form.email_member_2.toLowerCase() === user?.email?.toLowerCase()) {
+      setFormError('Member tidak dapat mentransfer miles ke dirinya sendiri.')
+      return
+    }
+
+    const amount = Number(form.jumlah)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setFormError('Jumlah miles harus lebih dari 0.')
+      return
+    }
+
+    if (amount > sessionMiles) {
+      setFormError('Saldo miles tidak mencukupi.')
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      // Validate recipient email exists in database
+      const memberRes = await fetch(`/api/member?email=${encodeURIComponent(form.email_member_2)}`)
+      if (!memberRes.ok) {
+        setFormError('Email penerima tidak ditemukan dalam sistem.')
+        setIsLoading(false)
+        return
+      }
+
+      const newT: TransferRecord = {
+        email_member_1: user?.email || '',
+        email_member_2: form.email_member_2,
+        timestamp: new Date().toISOString(),
+        jumlah: amount,
+        catatan: form.catatan.trim() || null,
+      }
+
+      const next = [...transfers, newT]
+      localStorage.setItem('aeromiles_transfer', JSON.stringify(next))
+      setTransfers(next)
+      setModalMode(null)
+      setForm(EMPTY_FORM)
+      setFormError('')
+    } catch (err) {
+      console.error(err)
+      setFormError('Gagal melakukan transfer.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (!isHydrated) {
     return (
       <main className="flex min-h-[calc(100vh-56px)] items-center justify-center p-6">
-        <p className="text-sm text-white/70">Memuat halaman transfer miles…</p>
+        <p className="text-sm text-white/70">Memuat…</p>
       </main>
     )
   }
@@ -105,57 +164,11 @@ export default function Page() {
     )
   }
 
-  function handleSubmit() {
-    if (!recipientEmail || !jumlah) {
-      setFormError('Semua field wajib diisi.')
-      return
-    }
-
-    if (recipientEmail.toLowerCase() === user?.email?.toLowerCase()) {
-      setFormError('Member tidak dapat mentransfer miles ke dirinya sendiri.')
-      return
-    }
-
-    const amount = Number(jumlah)
-
-    if (!Number.isFinite(amount) || amount <= 0) {
-      setFormError('Jumlah miles harus lebih dari 0.')
-      return
-    }
-
-    if (amount > sessionMiles) {
-      setFormError('Saldo miles tidak mencukupi.')
-      return
-    }
-
-    setIsLoading(true)
-    try {
-      const newT: TransferRecord = {
-        email_member_1: user?.email || '',
-        email_member_2: recipientEmail,
-        timestamp: new Date().toISOString(),
-        jumlah: amount,
-        catatan: catatan.trim() || null,
-      }
-
-      const raw = localStorage.getItem('aeromiles_transfer')
-      const all: TransferRecord[] = raw ? JSON.parse(raw) : []
-      const next = [...all, newT]
-
-      localStorage.setItem('aeromiles_transfer', JSON.stringify(next))
-
-      setRecipientEmail('')
-      setJumlah('')
-      setCatatan('')
-      setFormError('')
-      fetchTransfers()
-    } catch (err) {
-      console.error(err)
-      setFormError('Gagal melakukan transfer ke storage.')
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  const stats = [
+    { label: 'Saldo Miles', value: sessionMiles, accent: 'from-blue-500 to-cyan-500' },
+    { label: 'Total Transfer', value: filteredTransfers.length, accent: 'from-emerald-500 to-green-500' },
+    { label: 'Nominal Terkirim', value: transfers.filter(t => t.email_member_1 === user.email).reduce((acc, t) => acc + t.jumlah, 0), accent: 'from-violet-500 to-fuchsia-500' },
+  ]
 
   return (
     <main className="min-h-[calc(100vh-56px)] p-6">
@@ -163,91 +176,37 @@ export default function Page() {
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white">Transfer Miles</h1>
-            <p className="mt-1 text-sm text-white/70">Form transfer antar member</p>
+            <p className="mt-1 text-sm text-white/70">Kirim dan terima miles dengan member lain</p>
           </div>
+          <button
+            onClick={() => {
+              setForm(EMPTY_FORM)
+              setModalMode('add')
+              setFormError('')
+            }}
+            className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg hover:bg-blue-700"
+          >
+            + Transfer Miles
+          </button>
         </div>
 
         <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-          {[
-            { label: 'Saldo Miles (Session)', value: sessionMiles, accent: 'from-blue-500 to-cyan-500' },
-            { label: 'Total Transfer', value: transfers.length, accent: 'from-emerald-500 to-green-500' },
-            { label: 'Nominal Terkirim', value: transfers.reduce((acc, t) => acc + t.jumlah, 0), accent: 'from-violet-500 to-fuchsia-500' },
-          ].map((stat) => (
-            <div key={stat.label} className="overflow-hidden rounded-2xl bg-white/10 p-4 text-white ring-1 ring-white/10">
-              <div className={`mb-3 h-1.5 rounded-full bg-gradient-to-r ${stat.accent}`} />
-              <div className="text-xs uppercase tracking-[0.2em] text-white/60">{stat.label}</div>
-              <div className="mt-2 text-3xl font-bold">{stat.value.toLocaleString('id-ID')}</div>
+          {stats.map(s => (
+            <div key={s.label} className="overflow-hidden rounded-2xl bg-white/10 p-4 text-white ring-1 ring-white/10">
+              <div className={`mb-3 h-1.5 rounded-full bg-gradient-to-r ${s.accent}`} />
+              <div className="text-xs uppercase tracking-[0.2em] text-white/60">{s.label}</div>
+              <div className="mt-2 text-3xl font-bold">{s.value.toLocaleString('id-ID')}</div>
             </div>
           ))}
         </div>
 
-        <div className="mb-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-3xl bg-white/95 p-6 shadow-xl shadow-slate-950/10 ring-1 ring-slate-200/70">
-            <div className="mb-5">
-              <h2 className="text-lg font-bold text-slate-800">Form Transfer Miles</h2>
-              <p className="mt-1 text-sm text-slate-500">Pastikan penerima bukan akun yang sama dan email tujuan valid.</p>
-            </div>
-
-            <div className="space-y-4">
-              <label className="space-y-2 text-sm font-medium text-slate-700">
-                <span>Pengirim</span>
-                <input value={user?.email ?? '-'} readOnly className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600 outline-none" />
-              </label>
-
-              <label className="space-y-2 text-sm font-medium text-slate-700">
-                <span>Penerima (Email)</span>
-                <input
-                  type="email"
-                  value={recipientEmail}
-                  onChange={(event) => setRecipientEmail(event.target.value)}
-                  placeholder="Masukkan email member tujuan"
-                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
-                />
-              </label>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="space-y-2 text-sm font-medium text-slate-700">
-                  <span>Jumlah Miles</span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={jumlah}
-                    onChange={(event) => setJumlah(event.target.value)}
-                    placeholder="Masukkan jumlah miles"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
-                  />
-                </label>
-
-                <label className="space-y-2 text-sm font-medium text-slate-700">
-                  <span>Saldo Miles</span>
-                  <input value={`${sessionMiles.toLocaleString('id-ID')} miles`} readOnly className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600 outline-none" />
-                </label>
-              </div>
-
-              <label className="space-y-2 text-sm font-medium text-slate-700">
-                <span>Catatan</span>
-                <textarea
-                  rows={4}
-                  value={catatan}
-                  onChange={(event) => setCatatan(event.target.value)}
-                  placeholder="Tambahkan catatan transfer jika diperlukan…"
-                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
-                />
-              </label>
-            </div>
-
-            {formError ? <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{formError}</p> : null}
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={handleSubmit}
-                disabled={isLoading}
-                className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700 disabled:opacity-50"
-              >
-                {isLoading ? 'Memproses...' : 'Kirim Transfer'}
-              </button>
-            </div>
-          </div>
+        <div className="mb-4 rounded-2xl bg-white/95 p-4 shadow-lg">
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Cari email member…"
+            className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+          />
         </div>
 
         <div className="overflow-hidden rounded-3xl bg-white/95 shadow-xl shadow-slate-950/10 ring-1 ring-slate-200/70">
@@ -270,21 +229,21 @@ export default function Page() {
               <tbody>
                 {filteredTransfers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-14 text-center text-slate-400">Belum ada transfer miles yang tercatat.</td>
+                    <td colSpan={6} className="py-14 text-center text-slate-400">Belum ada transfer miles.</td>
                   </tr>
                 ) : (
-                  filteredTransfers.map((transfer, idx) => (
+                  filteredTransfers.map((t, idx) => (
                     <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/70">
                       <td className="px-5 py-4">
-                        <span className={getType(transfer) === 'Kirim' ? 'text-red-500 font-bold' : 'text-green-500 font-bold'}>
-                          {getType(transfer)}
+                        <span className={getType(t) === 'Kirim' ? 'font-bold text-red-500' : 'font-bold text-green-500'}>
+                          {getType(t)}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-slate-700">{transfer.email_member_1}</td>
-                      <td className="px-5 py-4 text-slate-700">{transfer.email_member_2}</td>
-                      <td className="px-5 py-4 font-semibold text-slate-800">{transfer.jumlah.toLocaleString('id-ID')} miles</td>
-                      <td className="px-5 py-4 text-slate-500">{transfer.catatan || '-'}</td>
-                      <td className="px-5 py-4 text-slate-500">{formatDateTime(transfer.timestamp)}</td>
+                      <td className="px-5 py-4 text-slate-700">{t.email_member_1}</td>
+                      <td className="px-5 py-4 text-slate-700">{t.email_member_2}</td>
+                      <td className="px-5 py-4 font-semibold text-slate-800">{t.jumlah.toLocaleString('id-ID')} miles</td>
+                      <td className="px-5 py-4 text-slate-500">{t.catatan || '-'}</td>
+                      <td className="px-5 py-4 text-slate-500">{formatDateTime(t.timestamp)}</td>
                     </tr>
                   ))
                 )}
@@ -293,6 +252,91 @@ export default function Page() {
           </div>
         </div>
       </div>
+
+      {/* MODAL ADD TRANSFER */}
+      {modalMode === 'add' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl">
+            <h2 className="mb-4 text-xl font-bold text-slate-800">Transfer Miles</h2>
+
+            <div className="space-y-4">
+              <label className="space-y-2 text-sm font-medium text-slate-700">
+                <span>Pengirim (Email Anda)</span>
+                <input
+                  type="email"
+                  value={user?.email || ''}
+                  readOnly
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600 outline-none"
+                />
+              </label>
+
+              <label className="space-y-2 text-sm font-medium text-slate-700">
+                <span>Penerima (Email Tujuan)</span>
+                <input
+                  type="email"
+                  value={form.email_member_2}
+                  onChange={e => setForm({ ...form, email_member_2: e.target.value })}
+                  placeholder="Masukkan email member penerima"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+                />
+              </label>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="space-y-2 text-sm font-medium text-slate-700">
+                  <span>Jumlah Miles</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.jumlah}
+                    onChange={e => setForm({ ...form, jumlah: e.target.value })}
+                    placeholder="Masukkan jumlah miles"
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+                  />
+                </label>
+
+                <label className="space-y-2 text-sm font-medium text-slate-700">
+                  <span>Saldo Anda</span>
+                  <input
+                    type="text"
+                    value={`${sessionMiles.toLocaleString('id-ID')} miles`}
+                    readOnly
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600 outline-none"
+                  />
+                </label>
+              </div>
+
+              <label className="space-y-2 text-sm font-medium text-slate-700">
+                <span>Catatan (Opsional)</span>
+                <textarea
+                  rows={3}
+                  value={form.catatan}
+                  onChange={e => setForm({ ...form, catatan: e.target.value })}
+                  placeholder="Tambahkan catatan untuk penerima…"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+                />
+              </label>
+            </div>
+
+            {formError && <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{formError}</p>}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setModalMode(null)}
+                className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isLoading}
+                className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isLoading ? 'Memproses…' : 'Kirim Transfer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
