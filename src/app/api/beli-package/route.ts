@@ -57,9 +57,11 @@ export async function POST(req: Request) {
         [id_award_miles_package, email_member]
       );
 
-      const updateRes = await client.query(
-        'UPDATE MEMBER SET award_miles = award_miles + $1, total_miles = total_miles + $1 WHERE email = $2 RETURNING award_miles, id_tier',
-        [pkg.jumlah_award_miles, email_member]
+      // Trigger sync_miles_beli_package() already updates award_miles & total_miles
+
+      const memberAfterRes = await client.query(
+        'SELECT award_miles, id_tier FROM MEMBER WHERE email = $1',
+        [email_member]
       );
 
       await client.query('COMMIT');
@@ -67,9 +69,9 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: true,
         data: {
-          award_miles: updateRes.rows[0].award_miles,
+          award_miles: memberAfterRes.rows[0].award_miles,
           old_tier: oldTier,
-          new_tier: updateRes.rows[0].id_tier,
+          new_tier: memberAfterRes.rows[0].id_tier,
           notice: noticeMessage,
         },
         message: `Pembelian berhasil! ${pkg.jumlah_award_miles} miles telah ditambahkan.`,

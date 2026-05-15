@@ -54,7 +54,7 @@ export default function InfoTierPage() {
         if (res.ok) {
           const data = await res.json();
           setTiers(data.tiers);
-          setMemberTier(data.member.id_tier);
+          setMemberTier(data.current_tier.id_tier);
           setTotalMiles(data.member.total_miles);
           setNextTier(data.next_tier);
           setIsHighestTier(data.is_highest_tier);
