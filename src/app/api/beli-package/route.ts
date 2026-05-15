@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const pkg = pkgRes.rows[0];
 
     const memberRes = await pool.query(
-      'SELECT email, award_miles FROM MEMBER WHERE email = $1',
+      'SELECT email, award_miles, id_tier FROM MEMBER WHERE email = $1',
       [email_member]
     );
 
@@ -41,7 +41,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Member tidak ditemukan' }, { status: 404 });
     }
 
+    const oldTier = memberRes.rows[0].id_tier;
+
     const client = await pool.connect();
+    let noticeMessage: string | null = null;
+    client.on('notice', (msg) => {
+      noticeMessage = msg.message ?? null;
+    });
+
     try {
       await client.query('BEGIN');
 
@@ -51,7 +58,7 @@ export async function POST(req: Request) {
       );
 
       const updateRes = await client.query(
-        'UPDATE MEMBER SET award_miles = award_miles + $1, total_miles = total_miles + $1 WHERE email = $2 RETURNING award_miles',
+        'UPDATE MEMBER SET award_miles = award_miles + $1, total_miles = total_miles + $1 WHERE email = $2 RETURNING award_miles, id_tier',
         [pkg.jumlah_award_miles, email_member]
       );
 
@@ -59,13 +66,19 @@ export async function POST(req: Request) {
 
       return NextResponse.json({
         success: true,
-        data: { award_miles: updateRes.rows[0].award_miles },
+        data: {
+          award_miles: updateRes.rows[0].award_miles,
+          old_tier: oldTier,
+          new_tier: updateRes.rows[0].id_tier,
+          notice: noticeMessage,
+        },
         message: `Pembelian berhasil! ${pkg.jumlah_award_miles} miles telah ditambahkan.`,
       });
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
     } finally {
+      client.removeAllListeners('notice');
       client.release();
     }
   } catch (error: any) {

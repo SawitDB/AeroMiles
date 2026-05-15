@@ -89,11 +89,12 @@ export default function BeliPackagePage() {
 
       const newAwardMiles = result.data.award_miles;
       setAwardMiles(newAwardMiles);
-      updateProfile({ awardMiles: newAwardMiles });
+      updateProfile({ awardMiles: newAwardMiles, idTier: result.data.new_tier });
       setShowModal(false);
       setSelectedPackage(null);
 
-      showNotification("success", `Pembelian berhasil! ${selectedPackage.jumlah_award_miles} miles telah ditambahkan.`);
+      const successMsg = result.data.notice || result.message;
+      showNotification("success", successMsg);
     } catch (error: any) {
       showNotification("error", `Gagal: ${error.message}`);
     }
