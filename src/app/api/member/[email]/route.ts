@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 
 // GET - Single member (kode kamu yang sudah ada, pindah ke sini)
-export async function GET(req: Request, { params }: { params: { email: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ email: string }> }) {
   try {
-    const email = params.email;
+    const { email } = await params;
 
     const res = await pool.query(`
       SELECT
@@ -28,9 +28,9 @@ export async function GET(req: Request, { params }: { params: { email: string } 
 }
 
 // PUT - Edit member
-export async function PUT(req: Request, { params }: { params: { email: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ email: string }> }) {
   try {
-    const email = params.email;
+    const { email } = await params;
     const body = await req.json();
     const {
       salutation, first_mid_name, last_name,
@@ -68,9 +68,9 @@ export async function PUT(req: Request, { params }: { params: { email: string } 
 }
 
 // DELETE - Hapus member (cascade ke Identitas, Klaim, Transfer, Redeem)
-export async function DELETE(req: Request, { params }: { params: { email: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ email: string }> }) {
   try {
-    const email = params.email;
+    const { email } = await params;
 
     // ON DELETE CASCADE di DDL sudah handle tabel terkait
     await pool.query(`DELETE FROM MEMBER WHERE email = $1`, [email]);
