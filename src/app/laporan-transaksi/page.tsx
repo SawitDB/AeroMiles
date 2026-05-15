@@ -38,6 +38,8 @@ export default function LaporanTransaksiPage() {
 
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [topMembers, setTopMembers] = useState<TopMember[]>([]);
+  const [top5Members, setTop5Members] = useState<any[]>([]);
+  const [top5Message, setTop5Message] = useState("");
 
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>("all");
   const [fromDate, setFromDate] = useState("");
@@ -67,7 +69,6 @@ export default function LaporanTransaksiPage() {
       router.replace("/dashboard");
       return;
     }
-    setSession({ email: user.email, role: user.role });
 
     // Load data from API for Top Members
     const fetchTopMembers = async () => {
