@@ -104,21 +104,49 @@ export async function getAuthenticatedUserByEmail(email: string): Promise<Authen
     password: row.password,
   }
 }
-
 export async function loginUser(email: string, password: string): Promise<User> {
-  const authUser = await getAuthenticatedUserByEmail(email)
+  const normalizedEmail = email.trim().toLowerCase()
 
-  if (!authUser) {
-    throw new Error('Email tidak ditemukan')
+  const result = await query(
+    `
+    SELECT
+      p.email,
+      p.password,
+      p.salutation,
+      p.first_mid_name,
+      p.last_name,
+      p.country_code,
+      p.mobile_number,
+      p.tanggal_lahir,
+      p.kewarganegaraan,
+      CASE
+        WHEN m.email IS NOT NULL THEN 'member'
+        WHEN s.email IS NOT NULL THEN 'staf'
+        ELSE NULL
+      END AS role,
+      m.nomor_member,
+      m.id_tier,
+      m.tanggal_bergabung,
+      s.id_staf,
+      s.kode_maskapai
+    FROM pengguna p
+    LEFT JOIN member m ON m.email = p.email
+    LEFT JOIN staf s ON s.email = p.email
+    WHERE lower(p.email) = lower($1)
+      AND p.password = crypt($2, p.password)
+    LIMIT 1
+    `,
+    [normalizedEmail, password],
+  )
+
+  const row = result.rows[0] as DbUserRow | undefined
+
+  if (!row) {
+    throw new Error('Email atau password salah')
   }
 
-  if (authUser.password !== password) {
-    throw new Error('Password salah')
-  }
-
-  return authUser.user
+  return mapRowToUser(row)
 }
-
 export async function getPublicUserByEmail(email: string): Promise<User | null> {
   const authUser = await getAuthenticatedUserByEmail(email)
   return authUser ? authUser.user : null
