@@ -69,4 +69,5 @@ export async function runSeed() {
   }
 }
 
-export default { runSeed };
+const seed = { runSeed };
+export default seed;
