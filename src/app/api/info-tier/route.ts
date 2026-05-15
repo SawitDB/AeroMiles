@@ -27,9 +27,10 @@ export async function GET(req: Request) {
 
     const tiers = tiersRes.rows;
 
-    const currentTierIndex = tiers.findIndex((t: any) => t.id_tier === member.id_tier);
+    const totalMiles = member.total_miles;
+    const currentTier = [...tiers].reverse().find((t: any) => t.minimal_tier_miles <= totalMiles) || tiers[0];
+    const currentTierIndex = tiers.findIndex((t: any) => t.id_tier === currentTier.id_tier);
     const isHighestTier = currentTierIndex === tiers.length - 1;
-    const currentTier = tiers[currentTierIndex] || null;
     const nextTier = isHighestTier ? null : tiers[currentTierIndex + 1];
 
     let progressPercent = 100;
