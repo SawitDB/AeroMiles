@@ -68,6 +68,7 @@ export default function Page() {
 
   useEffect(() => {
     if (!user?.email || transfers.length === 0) return
+    const currentUser = user;
 
     let cancelled = false
 
@@ -75,21 +76,21 @@ export default function Page() {
       const uniqueEmails = Array.from(
         new Set(
           transfers
-            .filter((transfer) => transfer.email_member_1 === user.email || transfer.email_member_2 === user.email)
+            .filter((transfer) => transfer.email_member_1 === currentUser.email || transfer.email_member_2 === currentUser.email)
             .flatMap((transfer) => [transfer.email_member_1, transfer.email_member_2])
         )
       )
 
       const entries = await Promise.all(
         uniqueEmails.map(async (email) => {
-          if (email === user.email) {
+          if (email === currentUser.email) {
             return [
               email,
               {
                 email,
-                salutation: user.salutation,
-                first_mid_name: user.firstName,
-                last_name: user.lastName,
+                salutation: currentUser.salutation,
+                first_mid_name: currentUser.firstName,
+                last_name: currentUser.lastName,
               },
             ] as const
           }
@@ -130,18 +131,18 @@ export default function Page() {
     // also fetch current member data (award/total miles) from server
     const loadSelf = async () => {
       try {
-        const res = await fetch(`/api/member?email=${encodeURIComponent(user.email)}`)
+        const res = await fetch(`/api/member?email=${encodeURIComponent(currentUser.email)}`)
         if (!res.ok) return
         const data = await res.json()
         setMemberData({ award_miles: data.award_miles, total_miles: data.total_miles })
         // ensure self is in memberByEmail map
         setMemberByEmail((prev) => ({
           ...prev,
-          [user.email]: {
-            email: user.email,
-            salutation: user.salutation,
-            first_mid_name: user.firstName,
-            last_name: user.lastName,
+          [currentUser.email]: {
+            email: currentUser.email,
+            salutation: currentUser.salutation,
+            first_mid_name: currentUser.firstName,
+            last_name: currentUser.lastName,
           },
         }))
       } catch (err) {

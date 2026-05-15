@@ -48,9 +48,10 @@ export default function InfoTierPage() {
       return;
     }
 
+    const currentUser = user;
     (async () => {
       try {
-        const res = await fetch(`/api/info-tier?email=${encodeURIComponent(user.email)}`);
+        const res = await fetch(`/api/info-tier?email=${encodeURIComponent(currentUser.email)}`);
         if (res.ok) {
           const data = await res.json();
           setTiers(data.tiers);
