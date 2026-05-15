@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRequireAuth } from '@/lib/auth/useRequireAuth'
 
 type Identitas = {
   nomor: string
@@ -21,6 +22,7 @@ const emptyForm = {
 }
 
 export default function Page() {
+  const { user, isHydrated } = useRequireAuth()
   const [data, setData] = useState<Identitas[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -31,14 +33,17 @@ export default function Page() {
 
   async function fetchData() {
     setLoading(true)
-    const res = await fetch('/api/identitas')
+    const res = await fetch('/api/identitas', { credentials: 'include' })
     if (res.ok) {
       setData(await res.json())
     }
     setLoading(false)
   }
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    if (!isHydrated || !user) return
+    fetchData()
+  }, [isHydrated, user])
 
   function openTambah() {
     setEditNomor(null)
@@ -66,6 +71,7 @@ export default function Page() {
     const res = await fetch('/api/identitas', {
       method: isEdit ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(form),
     })
     const json = await res.json()
@@ -81,6 +87,7 @@ export default function Page() {
     const res = await fetch('/api/identitas', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ nomor }),
     })
     if (res.ok) {
@@ -92,6 +99,8 @@ export default function Page() {
   function isExpired(tanggal_habis: string) {
     return new Date(tanggal_habis) < new Date()
   }
+
+  if (!isHydrated || !user) return null
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-12 text-white">
@@ -112,7 +121,6 @@ export default function Page() {
             <h2 className="mb-4 text-lg font-semibold">
               {editNomor ? 'Edit Identitas' : 'Tambah Identitas Baru'}
             </h2>
-
             <div className="space-y-3">
               <div>
                 <label className="mb-1 block text-sm">Nomor Dokumen</label>
@@ -123,11 +131,10 @@ export default function Page() {
                   onChange={e => setForm({ ...form, nomor: e.target.value })}
                 />
               </div>
-
               <div>
                 <label className="mb-1 block text-sm">Jenis Dokumen</label>
                 <select
-                  className="w-full rounded-lg bg-[#1e2d4a] border border-white/20 px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-white/20 bg-[#1e2d4a] px-3 py-2 text-sm"
                   value={form.jenis}
                   onChange={e => setForm({ ...form, jenis: e.target.value })}
                 >
@@ -136,7 +143,6 @@ export default function Page() {
                   ))}
                 </select>
               </div>
-
               <div>
                 <label className="mb-1 block text-sm">Negara Penerbit</label>
                 <input
@@ -145,7 +151,6 @@ export default function Page() {
                   onChange={e => setForm({ ...form, negara_penerbit: e.target.value })}
                 />
               </div>
-
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="mb-1 block text-sm">Tanggal Terbit</label>
@@ -166,10 +171,8 @@ export default function Page() {
                   />
                 </div>
               </div>
-
               {error && <p className="text-sm text-red-400">{error}</p>}
             </div>
-
             <div className="mt-5 flex justify-end gap-2">
               <button
                 onClick={() => setShowForm(false)}
