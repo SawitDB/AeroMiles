@@ -67,6 +67,22 @@ export default function LaporanTransaksiPage() {
       router.replace("/dashboard");
       return;
     }
+    setSession({ email: user.email, role: user.role });
+
+    // Load data from API for Top Members
+    const fetchTopMembers = async () => {
+      try {
+        const res = await fetch("/api/laporan-transaksi?type=top-members");
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setTop5Members(data);
+          setTop5Message(data[0].message);
+        }
+      } catch (err) {
+        console.error("Failed to fetch top members", err);
+      }
+    };
+    fetchTopMembers();
 
     (async () => {
       try {
@@ -432,22 +448,16 @@ export default function LaporanTransaksiPage() {
                       <th className="px-4 py-3 text-right font-semibold text-gray-900">
                         Total Miles
                       </th>
-                      <th className="px-4 py-3 text-center font-semibold text-gray-900">
-                        Jumlah Transaksi
-                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {topMembers.map((member, idx) => (
+                    {top5Members.map((member, idx) => (
                       <tr key={member.email} className="border-b hover:bg-gray-50">
                         <td className="px-4 py-3 text-center font-bold text-lg text-black">
                           {medalMap[idx] || idx + 1}
                         </td>
                         <td className="px-4 py-3 text-gray-900">
                           <p className="text-sm font-semibold">{member.email}</p>
-                          <p className="text-xs text-gray-500">
-                            {member.nomor_member}
-                          </p>
                         </td>
                         <td className="px-4 py-3 text-right font-bold text-primary">
                           {member.total_miles.toLocaleString("id-ID")}
