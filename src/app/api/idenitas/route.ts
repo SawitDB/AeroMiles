@@ -26,7 +26,7 @@ export async function GET() {
       `SELECT
          nomor, email_member, tanggal_habis, tanggal_terbit,
          negara_penerbit, jenis
-       FROM AEROMILES.IDENTITAS
+       FROM IDENTITAS
        WHERE email_member = $1
        ORDER BY tanggal_terbit DESC`,
       [email]
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
 
     // Cek nomor dokumen unik
     const dupCheck = await pool.query(
-      `SELECT nomor FROM AEROMILES.IDENTITAS WHERE nomor = $1`,
+      `SELECT nomor FROM IDENTITAS WHERE nomor = $1`,
       [nomor]
     )
 
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
     }
 
     const { rows } = await pool.query(
-      `INSERT INTO AEROMILES.IDENTITAS
+      `INSERT INTO IDENTITAS
          (nomor, email_member, tanggal_habis, tanggal_terbit, negara_penerbit, jenis)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING nomor, email_member, tanggal_habis, tanggal_terbit, negara_penerbit, jenis`,
@@ -95,7 +95,7 @@ export async function PUT(req: Request) {
 
     // Pastikan identitas milik member yang login
     const ownerCheck = await pool.query(
-      `SELECT nomor FROM AEROMILES.IDENTITAS WHERE nomor = $1 AND email_member = $2`,
+      `SELECT nomor FROM IDENTITAS WHERE nomor = $1 AND email_member = $2`,
       [nomor, email]
     )
 
@@ -104,7 +104,7 @@ export async function PUT(req: Request) {
     }
 
     await pool.query(
-      `UPDATE AEROMILES.IDENTITAS
+      `UPDATE IDENTITAS
        SET
          tanggal_habis   = $1,
          tanggal_terbit  = $2,
@@ -136,7 +136,7 @@ export async function DELETE(req: Request) {
 
     // Pastikan identitas milik member yang login
     const ownerCheck = await pool.query(
-      `SELECT nomor FROM AEROMILES.IDENTITAS WHERE nomor = $1 AND email_member = $2`,
+      `SELECT nomor FROM IDENTITAS WHERE nomor = $1 AND email_member = $2`,
       [nomor, email]
     )
 
@@ -145,7 +145,7 @@ export async function DELETE(req: Request) {
     }
 
     await pool.query(
-      `DELETE FROM AEROMILES.IDENTITAS WHERE nomor = $1 AND email_member = $2`,
+      `DELETE FROM IDENTITAS WHERE nomor = $1 AND email_member = $2`,
       [nomor, email]
     )
 

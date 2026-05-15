@@ -15,6 +15,8 @@ type DbUserRow = {
   nomor_member: string | null
   id_tier: string | null
   tanggal_bergabung: Date | string | null
+  award_miles: number | null
+  total_miles: number | null
   id_staf: string | null
   kode_maskapai: string | null
 }
@@ -62,6 +64,8 @@ function mapRowToUser(row: DbUserRow): User {
     nomorMember: row.nomor_member ?? undefined,
     idTier: row.id_tier ?? undefined,
     tanggalBergabung: formatDate(row.tanggal_bergabung) || undefined,
+    awardMiles: row.award_miles ?? 0,
+    totalMiles: row.total_miles ?? 0,
     idStaf: row.id_staf ?? undefined,
     kodeMaskapai: row.kode_maskapai ?? undefined,
   }
