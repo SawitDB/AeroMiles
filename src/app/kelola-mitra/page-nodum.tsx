@@ -249,7 +249,9 @@ export default function KelolaMitraPage() {
                         ? <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
                             {hadiahCount(m.id_penyedia)} hadiah
                           </span>
-                        : <span className="text-slate-400">-</span>
+                        : <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                            0 hadiah
+                          </span>
                       }
                     </td>
                     <td className="px-4 py-3">

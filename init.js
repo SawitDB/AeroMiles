@@ -3,6 +3,10 @@ import path from 'path';
 import pkg from 'pg';
 const { Pool } = pkg;
 
+// Bypass environment checks for JWT if running standalone
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'temporary_secret_for_init';
+
+
 const connectionString = process.env.DATABASE_URL || 
   `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
 
