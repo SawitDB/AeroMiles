@@ -45,7 +45,7 @@ export default function BeliPackagePage() {
       try {
         const [pkgRes, memberRes] = await Promise.all([
           fetch("/api/beli-package"),
-          fetch(`/api/member?email=${encodeURIComponent(currentUser.email)}`),
+          fetch(`/api/member/${encodeURIComponent(currentUser.email)}`),
         ]);
         if (pkgRes.ok) {
           const data = await pkgRes.json();

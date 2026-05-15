@@ -51,8 +51,8 @@ export default function RedeemHadiahPage() {
     try {
       const [hadiahRes, redeemRes, memberRes] = await Promise.all([
         fetch("/api/hadiah?available=true"),
-        fetch(`/api/redeem?email=${encodeURIComponent(user.email)}`),
-        fetch(`/api/member?email=${encodeURIComponent(user.email)}`),
+        fetch(`/api/redeem-hadiah?email=${encodeURIComponent(user.email)}`),
+        fetch(`/api/member/${encodeURIComponent(user.email)}`),
       ]);
       if (hadiahRes.ok) setHadiah(await hadiahRes.json());
       if (redeemRes.ok) setRedeemHistory(await redeemRes.json());
@@ -116,7 +116,7 @@ export default function RedeemHadiahPage() {
     if (!selectedHadiah) return;
     setRedeeming(true);
     try {
-      const res = await fetch("/api/redeem", {
+      const res = await fetch("/api/redeem-hadiah", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email_member: user.email, kode_hadiah: selectedHadiah.kode_hadiah }),

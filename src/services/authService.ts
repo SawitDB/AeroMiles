@@ -15,6 +15,8 @@ type DbUserRow = {
   nomor_member: string | null
   id_tier: string | null
   tanggal_bergabung: Date | string | null
+  award_miles: number | null
+  total_miles: number | null
   id_staf: string | null
   kode_maskapai: string | null
 }
@@ -62,6 +64,8 @@ function mapRowToUser(row: DbUserRow): User {
     nomorMember: row.nomor_member ?? undefined,
     idTier: row.id_tier ?? undefined,
     tanggalBergabung: formatDate(row.tanggal_bergabung) || undefined,
+    awardMiles: row.award_miles ?? undefined,
+    totalMiles: row.total_miles ?? undefined,
     idStaf: row.id_staf ?? undefined,
     kodeMaskapai: row.kode_maskapai ?? undefined,
   }
@@ -85,6 +89,8 @@ export async function getAuthenticatedUserByEmail(email: string): Promise<Authen
         m.nomor_member,
         m.id_tier,
         m.tanggal_bergabung,
+        m.award_miles,
+        m.total_miles,
         s.id_staf,
         s.kode_maskapai
       FROM pengguna p
@@ -127,6 +133,8 @@ export async function loginUser(email: string, password: string): Promise<User> 
       m.nomor_member,
       m.id_tier,
       m.tanggal_bergabung,
+      m.award_miles,
+      m.total_miles,
       s.id_staf,
       s.kode_maskapai
     FROM pengguna p
