@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
-import { getFromStorage, saveToStorage } from "@/lib/storage";
 import ConfirmModal from "@/components/ConfirmModal";
 
 interface Package {
@@ -12,20 +11,23 @@ interface Package {
   harga_paket: number;
 }
 
-interface Purchase {
-  id_award_miles_package: string;
-  email_member: string;
-  timestamp: string;
-}
-
 export default function BeliPackagePage() {
   const router = useRouter();
-  const { user, isHydrated: authHydrated } = useAuth();
+  const { user, isHydrated: authHydrated, updateProfile } = useAuth();
   const [packages, setPackages] = useState<Package[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [awardMiles, setAwardMiles] = useState(0);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [notification, setNotification] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  const showNotification = useCallback((type: "success" | "error", message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 4000);
+  }, []);
 
   useEffect(() => {
     if (!authHydrated) return
@@ -40,9 +42,20 @@ export default function BeliPackagePage() {
 
     setAwardMiles(user.awardMiles || 0);
 
-    const packagesData = getFromStorage<Package>("aeromiles_amp");
-    setPackages(packagesData);
-    setHydrated(true);
+    async function fetchPackages() {
+      try {
+        const res = await fetch("/api/beli-package");
+        if (res.ok) {
+          const data = await res.json();
+          setPackages(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch packages:", error);
+      }
+      setHydrated(true);
+    }
+
+    fetchPackages();
   }, [authHydrated, user, router]);
 
   if (!hydrated || !user) {
@@ -54,26 +67,36 @@ export default function BeliPackagePage() {
     setShowModal(true);
   };
 
-  const handleConfirmPurchase = () => {
+  const handleConfirmPurchase = async () => {
     if (!selectedPackage || !user) return;
 
-    const newAwardMiles = awardMiles + selectedPackage.jumlah_award_miles;
+    try {
+      const res = await fetch("/api/beli-package", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_award_miles_package: selectedPackage.id,
+          email_member: user.email,
+        }),
+      });
 
-    const purchases = getFromStorage<Purchase>("aeromiles_member_amp");
-    purchases.push({
-      id_award_miles_package: selectedPackage.id,
-      email_member: user.email,
-      timestamp: new Date().toISOString(),
-    });
-    saveToStorage("aeromiles_member_amp", purchases);
+      const result = await res.json();
 
-    setAwardMiles(newAwardMiles);
-    setShowModal(false);
-    setSelectedPackage(null);
+      if (!res.ok) {
+        showNotification("error", `Gagal: ${result.error}`);
+        return;
+      }
 
-    alert(
-      `✅ Pembelian berhasil! ${selectedPackage.jumlah_award_miles} miles telah ditambahkan.`
-    );
+      const newAwardMiles = result.data.award_miles;
+      setAwardMiles(newAwardMiles);
+      updateProfile({ awardMiles: newAwardMiles });
+      setShowModal(false);
+      setSelectedPackage(null);
+
+      showNotification("success", `Pembelian berhasil! ${selectedPackage.jumlah_award_miles} miles telah ditambahkan.`);
+    } catch (error: any) {
+      showNotification("error", `Gagal: ${error.message}`);
+    }
   };
 
   const formatRupiah = (value: number) => {
@@ -141,7 +164,7 @@ export default function BeliPackagePage() {
                 <span className="font-semibold">Paket:</span> {selectedPackage.id}
               </p>
               <p>
-                <span className="font-semibold">Award Miles:</span>{" "}
+                <span className="font-semibold">Award Miles:</span> {" +"}
                 {selectedPackage.jumlah_award_miles.toLocaleString("id-ID")} miles
               </p>
               <p>
@@ -168,6 +191,25 @@ export default function BeliPackagePage() {
         confirmLabel="Konfirmasi Pembelian"
         confirmVariant="primary"
       />
+
+      {notification && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl px-6 py-4 pr-12 shadow-2xl text-white transition-all ${
+            notification.type === "success" ? "bg-green-600" : "bg-red-600"
+          }`}
+        >
+          <span className="text-xl">
+            {notification.type === "success" ? "✅" : "❌"}
+          </span>
+          <p className="font-medium">{notification.message}</p>
+          <button
+            onClick={() => setNotification(null)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/80 hover:text-white text-lg leading-none"
+          >
+            &times;
+          </button>
+        </div>
+      )}
     </main>
   );
 }
