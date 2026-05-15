@@ -1,53 +1,64 @@
--- TODO: bikin trigger 5
--- TRIGGER 05A: Sinkronisasi Total Miles setelah Klaim Disetujui
-
-CREATE OR REPLACE FUNCTION sync_miles_klaim_disetujui()
+-- 1. Sinkronisasi Total Miles Member setelah Klaim Missing Miles Disetujui
+CREATE OR REPLACE FUNCTION trigger_sync_miles_claim()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_email_member VARCHAR(100);
+    v_flight_number VARCHAR(10);
 BEGIN
-    IF NEW.status_penerimaan = 'Disetujui' AND OLD.status_penerimaan <> 'Disetujui' THEN
+    -- Cek jika status berubah dari 'Menunggu' ke 'Disetujui'
+    IF (OLD.status_penerimaan = 'Menunggu' AND NEW.status_penerimaan = 'Disetujui') THEN
+        v_email_member := NEW.email_member;
+        v_flight_number := NEW.flight_number;
+
+        -- Update miles member
         UPDATE MEMBER
         SET award_miles = award_miles + 1000,
             total_miles = total_miles + 1000
-        WHERE email = NEW.email_member;
+        WHERE email = v_email_member;
 
-        RAISE NOTICE 'SUKSES: Total miles Member "%" telah diperbarui. Miles ditambahkan: 1000 miles dari klaim penerbangan "%".',
-            NEW.email_member, NEW.flight_number;
+        -- Raise NOTICE untuk menampilkan pesan sukses (akan ditangkap oleh backend)
+        -- Pesan: "SUKSES: Total miles Member \"<email member>\" telah diperbarui. Miles ditambahkan: 1000 miles dari klaim penerbangan \"<flight_number>\"."
+        RAISE NOTICE 'SUKSES: Total miles Member "%" telah diperbarui. Miles ditambahkan: 1000 miles dari klaim penerbangan "%".', v_email_member, v_flight_number;
     END IF;
-
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_klaim_disetujui
-AFTER UPDATE OF status_penerimaan ON CLAIM_MISSING_MILES
+DROP TRIGGER IF EXISTS trg_sync_miles_claim ON CLAIM_MISSING_MILES;
+CREATE TRIGGER trg_sync_miles_claim
+AFTER UPDATE ON CLAIM_MISSING_MILES
 FOR EACH ROW
-EXECUTE FUNCTION sync_miles_klaim_disetujui();
+EXECUTE FUNCTION trigger_sync_miles_claim();
 
 
--- STORED PROCEDURE 05B: Pemeringkatan Top 5 Member berdasarkan Total Miles
-
-CREATE OR REPLACE FUNCTION get_top5_member()
-RETURNS TABLE (
-    rank        BIGINT,
-    email       VARCHAR,
-    nama        TEXT,
+-- 2. Pemeringkatan Top 5 Member berdasarkan Total Miles
+CREATE OR REPLACE FUNCTION get_top_5_members()
+RETURNS TABLE(
+    peringkat INT,
+    email VARCHAR(100),
     total_miles INT,
-    id_tier     VARCHAR
+    message TEXT
 ) AS $$
+DECLARE
+    v_first_email VARCHAR(100);
+    v_first_miles INT;
 BEGIN
-    RETURN QUERY
-    SELECT
-        ROW_NUMBER() OVER (ORDER BY m.total_miles DESC) AS rank,
-        m.email,
-        (p.salutation || ' ' || p.first_mid_name || ' ' || p.last_name)::TEXT AS nama,
-        m.total_miles,
-        m.id_tier
+    -- Ambil info peringkat pertama untuk pesan
+    SELECT m.email, m.total_miles INTO v_first_email, v_first_miles
     FROM MEMBER m
-    JOIN PENGGUNA p ON p.email = m.email
+    ORDER BY m.total_miles DESC
+    LIMIT 1;
+
+    -- Return tabel hasil peringkat
+    RETURN QUERY
+    SELECT 
+        CAST(row_number() OVER (ORDER BY m.total_miles DESC) AS INT) as peringkat,
+        m.email,
+        m.total_miles,
+        -- Pesan: "SUKSES: Daftar Top 5 Member berdasarkan total miles berhasil diperbarui, dengan peringkat pertama \"<email>\" memiliki <total miles> miles."
+        CAST('SUKSES: Daftar Top 5 Member berdasarkan total miles berhasil diperbarui, dengan peringkat pertama "' || v_first_email || '" memiliki ' || v_first_miles || ' miles.' AS TEXT) as message
+    FROM MEMBER m
     ORDER BY m.total_miles DESC
     LIMIT 5;
-
-    RAISE NOTICE 'SUKSES: Daftar Top 5 Member berdasarkan total miles berhasil diperbarui, dengan peringkat pertama memiliki % miles.',
-        (SELECT total_miles FROM MEMBER ORDER BY total_miles DESC LIMIT 1);
 END;
 $$ LANGUAGE plpgsql;

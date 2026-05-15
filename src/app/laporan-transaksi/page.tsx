@@ -40,6 +40,8 @@ export default function LaporanTransaksiPage() {
   // Transactions
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [top5Members, setTop5Members] = useState<any[]>([]);
+  const [top5Message, setTop5Message] = useState("");
   const [session, setSession] = useState<{ email: string; role: string } | null>(null);
 
   // Filters
@@ -65,8 +67,24 @@ export default function LaporanTransaksiPage() {
       router.replace("/dashboard");
       return;
     }
+    setSession({ email: user.email, role: user.role });
 
-    // Load all data
+    // Load data from API for Top Members
+    const fetchTopMembers = async () => {
+      try {
+        const res = await fetch("/api/laporan-transaksi?type=top-members");
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setTop5Members(data);
+          setTop5Message(data[0].message);
+        }
+      } catch (err) {
+        console.error("Failed to fetch top members", err);
+      }
+    };
+    fetchTopMembers();
+
+    // Load all data from storage (for riwayat)
     const users = getFromStorage<Member>("aeromiles_users");
     const transfers = getFromStorage("aeromiles_transfer");
     const redeems = getFromStorage("aeromiles_redeem");
@@ -457,7 +475,12 @@ export default function LaporanTransaksiPage() {
           {/* VIEW 2: Top Member */}
           {activeTab === "topMember" && (
             <div className="overflow-x-auto">
-              {topMembers.length === 0 ? (
+              {top5Message && (
+                <div className="mb-4 rounded-lg bg-green-50 p-4 text-sm font-semibold text-green-800 border border-green-200">
+                  {top5Message}
+                </div>
+              )}
+              {top5Members.length === 0 ? (
                 <p className="text-center text-gray-500 py-8">
                   Tidak ada member.
                 </p>
@@ -474,28 +497,19 @@ export default function LaporanTransaksiPage() {
                       <th className="px-4 py-3 text-right font-semibold text-gray-900">
                         Total Miles
                       </th>
-                      <th className="px-4 py-3 text-center font-semibold text-gray-900">
-                        Jumlah Transaksi
-                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {topMembers.map((member, idx) => (
+                    {top5Members.map((member, idx) => (
                       <tr key={member.email} className="border-b hover:bg-gray-50">
                         <td className="px-4 py-3 text-center font-bold text-lg">
                           {medalMap[idx] || idx + 1}
                         </td>
                         <td className="px-4 py-3 text-gray-900">
                           <p className="text-sm font-semibold">{member.email}</p>
-                          <p className="text-xs text-gray-500">
-                            {member.nomor_member}
-                          </p>
                         </td>
                         <td className="px-4 py-3 text-right font-bold text-primary">
                           {member.total_miles.toLocaleString("id-ID")}
-                        </td>
-                        <td className="px-4 py-3 text-center font-semibold">
-                          {member.jumlah_transaksi}
                         </td>
                       </tr>
                     ))}
