@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useRequireAuth } from '@/lib/auth/useRequireAuth'
-import { loadMembers, saveMembers, getNextMemberNumber } from '@/lib/auth/storage'
 import type { Member } from '@/lib/auth/types'
 
 const SALUTATIONS = ['Mr.', 'Mrs.', 'Ms.', 'Dr.']
@@ -11,7 +10,7 @@ const KEWARGANEGARAAN = [
   'Indonesia', 'Malaysia', 'Singapura', 'Filipina', 'Thailand',
   'Vietnam', 'Australia', 'Amerika Serikat', 'Inggris', 'Jepang',
 ]
-const TIERS = ['Blue', 'Silver', 'Gold', 'Platinum']
+const TIERS = ['BLUE', 'SILVER', 'GOLD', 'PLATINUM']
 
 type ModalMode = 'add' | 'edit' | null
 
@@ -45,7 +44,30 @@ export default function KelolaMemberPage() {
   const [formError, setFormError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null)
 
-  useEffect(() => { setMembers(loadMembers()) }, [])
+  useEffect(() => {
+  fetch('/api/member')
+    .then(res => res.json())
+    .then(data => {
+      const mapped = data.map((row: any) => ({
+        email: row.email,
+        nomorMember: row.nomor_member,
+        name: `${row.salutation} ${row.first_mid_name} ${row.last_name}`,
+        salutation: row.salutation,
+        firstName: row.first_mid_name,
+        lastName: row.last_name,
+        countryCode: row.country_code,
+        mobileNumber: row.mobile_number,
+        tanggalLahir: row.tanggal_lahir,
+        kewarganegaraan: row.kewarganegaraan,
+        idTier: row.id_tier,
+        tanggalBergabung: row.tanggal_bergabung,
+        awardMiles: row.award_miles,
+        totalMiles: row.total_miles,
+        role: 'member',
+      }))
+      setMembers(mapped)
+    })
+}, [])
 
   if (isHydrated && user && user.role !== 'staf') {
     return (
@@ -84,37 +106,125 @@ export default function KelolaMemberPage() {
     setModalMode('edit')
   }
 
-  function handleSave() {
-    if (!form.email || !form.firstName || !form.lastName || !form.mobileNumber || !form.tanggalLahir) {
-      setFormError('Semua field wajib diisi.')
-      return
-    }
-    if (modalMode === 'add') {
-      if (members.some(m => m.email === form.email)) { setFormError('Email sudah terdaftar.'); return }
-      const newMember: Member = {
-        email: form.email, name: `${form.salutation} ${form.firstName} ${form.lastName}`,
-        salutation: form.salutation, firstName: form.firstName, lastName: form.lastName,
-        countryCode: form.countryCode, mobileNumber: form.mobileNumber,
-        tanggalLahir: form.tanggalLahir, kewarganegaraan: form.kewarganegaraan,
-        role: 'member', nomorMember: getNextMemberNumber(), idTier: form.idTier,
-        tanggalBergabung: new Date().toISOString().split('T')[0], awardMiles: 0, totalMiles: 0,
-      }
-      const next = [...members, newMember]
-      setMembers(next); saveMembers(next)
-    } else if (modalMode === 'edit' && editTarget) {
-      const next = members.map(m => m.email === editTarget.email
-        ? { ...m, name: `${form.salutation} ${form.firstName} ${form.lastName}`, salutation: form.salutation, firstName: form.firstName, lastName: form.lastName, countryCode: form.countryCode, mobileNumber: form.mobileNumber, tanggalLahir: form.tanggalLahir, kewarganegaraan: form.kewarganegaraan, idTier: form.idTier }
-        : m)
-      setMembers(next); saveMembers(next)
-    }
-    setModalMode(null); setEditTarget(null)
+  async function handleSave() {
+  if (
+    !form.email ||
+    !form.firstName ||
+    !form.lastName ||
+    !form.mobileNumber ||
+    !form.tanggalLahir
+  ) {
+    setFormError('Semua field wajib diisi.')
+    return
   }
 
-  function handleDelete() {
-    if (!deleteTarget) return
-    const next = members.filter(m => m.email !== deleteTarget.email)
-    setMembers(next); saveMembers(next); setDeleteTarget(null)
+  try {
+    if (modalMode === 'add') {
+      const response = await fetch('/api/member', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: form.email,
+          password: 'member123',
+          salutation: form.salutation,
+          first_mid_name: form.firstName,
+          last_name: form.lastName,
+          country_code: form.countryCode,
+          mobile_number: form.mobileNumber,
+          tanggal_lahir: form.tanggalLahir,
+          kewarganegaraan: form.kewarganegaraan,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Gagal menambahkan member')
+      }
+    }
+
+    if (modalMode === 'edit' && editTarget) {
+      const response = await fetch(
+        `/api/member/${encodeURIComponent(editTarget.email)}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            salutation: form.salutation,
+            first_mid_name: form.firstName,
+            last_name: form.lastName,
+            country_code: form.countryCode,
+            mobile_number: form.mobileNumber,
+            tanggal_lahir: form.tanggalLahir,
+            kewarganegaraan: form.kewarganegaraan,
+            id_tier: form.idTier,
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Gagal update member')
+      }
+    }
+
+    const refreshed = await fetch('/api/member')
+    const refreshedData = await refreshed.json()
+
+    const mapped = refreshedData.map((row: any) => ({
+      email: row.email,
+      nomorMember: row.nomor_member,
+      name: `${row.salutation} ${row.first_mid_name} ${row.last_name}`,
+      salutation: row.salutation,
+      firstName: row.first_mid_name,
+      lastName: row.last_name,
+      countryCode: row.country_code,
+      mobileNumber: row.mobile_number,
+      tanggalLahir: row.tanggal_lahir?.split('T')[0] ?? '',
+      kewarganegaraan: row.kewarganegaraan,
+      idTier: row.id_tier,
+      tanggalBergabung: row.tanggal_bergabung?.split('T')[0] ?? '',
+      awardMiles: row.award_miles,
+      totalMiles: row.total_miles,
+      role: 'member' as const,
+    }))
+
+    setMembers(mapped)
+
+    setModalMode(null)
+    setEditTarget(null)
+  } catch (error) {
+    console.error(error)
+    setFormError('Terjadi kesalahan saat menyimpan data.')
   }
+}
+
+  async function handleDelete() {
+  if (!deleteTarget) return
+
+  try {
+    const response = await fetch(
+      `/api/member/${encodeURIComponent(deleteTarget.email)}`,
+      {
+        method: 'DELETE',
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error('Gagal menghapus member')
+    }
+
+    setMembers(prev =>
+      prev.filter(m => m.email !== deleteTarget.email)
+    )
+
+    setDeleteTarget(null)
+  } catch (error) {
+    console.error(error)
+    alert('Gagal menghapus member')
+  }
+}
 
   return (
     <main className="min-h-[calc(100vh-56px)] p-6">
