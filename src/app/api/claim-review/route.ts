@@ -43,7 +43,17 @@ export async function PUT(req: Request) {
       [status_penerimaan, email_staf, id]
     )
 
-    return NextResponse.json({ success: true })
+    // Ambil data terbaru untuk pesan sukses sesuai instruksi GEMINI.md
+    const result = await pool.query(
+      `SELECT email_member, flight_number FROM CLAIM_MISSING_MILES WHERE id = $1`,
+      [id]
+    )
+    const { email_member, flight_number } = result.rows[0]
+
+    return NextResponse.json({ 
+      success: true, 
+      message: `SUKSES: Total miles Member "${email_member}" telah diperbarui. Miles ditambahkan: 1000 miles dari klaim penerbangan "${flight_number}".`
+    })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
